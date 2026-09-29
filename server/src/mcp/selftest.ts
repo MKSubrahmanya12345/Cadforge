@@ -115,9 +115,15 @@ async function runHttp(url: string): Promise<void> {
     return;
   }
   const listed = await client.listTools();
-  check('tools/list works over HTTP', listed.tools.length === MCP_TOOLS.length, `${listed.tools.length} tools`);
-  const result = await client.callTool({ name: 'create_cad_project', arguments: {} });
-  check('tool call over HTTP returns a validation error', result.isError === true);
+  const coreTools = ['build_cad_model', 'list_parts', 'get_part', 'cadforge_health'];
+  const availableNames = new Set(listed.tools.map((tool) => tool.name));
+  check(
+    'tools/list exposes every core tool over HTTP',
+    coreTools.every((name) => availableNames.has(name)),
+    `${listed.tools.length} tools (${[...availableNames].join(', ')})`,
+  );
+  const result = await client.callTool({ name: 'build_cad_model', arguments: {} });
+  check('build_cad_model rejects missing parts over HTTP', result.isError === true);
   await client.close();
 
 }

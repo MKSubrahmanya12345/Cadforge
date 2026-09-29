@@ -52,25 +52,29 @@ def _as_shape(obj: Any) -> Any:
     raise TypeError(f"build() returned {type(obj).__name__}, expected Workplane or Shape")
 
 
+def _normalize_part_origin(obj: Any) -> Any:
+    """Place a part's measured lower-left-bottom corner at its local origin."""
+    shape = _as_shape(obj)
+    bounds = shape.val().BoundingBox()
+    return shape.translate((-bounds.xmin, -bounds.ymin, -bounds.zmin))
+
+
 def to_compound(parts: list[tuple[Any, Vec3, Vec3]]) -> Any:
     """Combine shapes with position/rotation into one compound."""
     import cadquery as cq
 
-    from app.units import rotation_matrix
-
     moved = []
     for shape, pos, rot in parts:
-        s = shape
+        s = _normalize_part_origin(shape)
         if any(abs(v) > 1e-9 for v in (rot.x, rot.y, rot.z)):
-            m = rotation_matrix((rot.x, rot.y, rot.z))
             sx, sy, sz = s.val().BoundingBox().xlen, s.val().BoundingBox().ylen, s.val().BoundingBox().zlen
-            # Rotate about the part's own origin (lower-left, z=0).
-            s = s.translate((-sx / 2, -sy / 2, 0))
+            # Rotate around the part centre, then put the rotated lower-left
+            # corner back at the local origin used by placement offsets.
+            s = s.translate((-sx / 2, -sy / 2, -sz / 2))
             rotated = s.rotate((0, 0, 0), (1, 0, 0), rot.x)
             rotated = rotated.rotate((0, 0, 0), (0, 1, 0), rot.y)
             rotated = rotated.rotate((0, 0, 0), (0, 0, 1), rot.z)
-            del m
-            s = rotated.translate((sx / 2, sy / 2, 0))
+            s = _normalize_part_origin(rotated)
         s = s.translate((pos.x, pos.y, pos.z))
         moved.append(s)
     if len(moved) == 1:
@@ -127,7 +131,23 @@ def export_glb(
         from app.units import rotation_matrix, apply_matrix
 
         m = rotation_matrix((rot.x, rot.y, rot.z))
-        verts = [apply_matrix(m, UVec3(*v)) for v in mesh.vertices]
+        bounds = mesh.bounds
+        center = (bounds[0] + bounds[1]) / 2.0
+        rotated = [
+            apply_matrix(
+                m,
+                UVec3(
+                    float(v[0] - center[0]),
+                    float(v[1] - center[1]),
+                    float(v[2] - center[2]),
+                ),
+            )
+            for v in mesh.vertices
+        ]
+        min_x = min(v.x for v in rotated)
+        min_y = min(v.y for v in rotated)
+        min_z = min(v.z for v in rotated)
+        verts = [UVec3(v.x - min_x, v.y - min_y, v.z - min_z) for v in rotated]
         mesh = trimesh.Trimesh(
             vertices=[[v.x, v.y, v.z] for v in verts],
             faces=mesh.faces,
@@ -223,17 +243,19 @@ def item_color(spec: PartSpec) -> str:
 
 
 def build_item_shape(item: ExportItem, workdir: Path) -> Any:
-    """Rebuild one part's shape from its code, or import its exported STEP."""
+    """Rebuild one part at a lower-left-bottom origin, or import its STEP."""
     import cadquery as cq
 
     if item.code:
-        return _build_shape(item.code, workdir)
-    if item.step_path:
+        shape = _build_shape(item.code, workdir)
+    elif item.step_path:
         imported = cq.importers.importStep(str(item.step_path))
-        return imported
-    raise ValueError(
-        f"item {item.instance_name} has neither code nor step_path; cannot rebuild geometry"
-    )
+        shape = imported
+    else:
+        raise ValueError(
+            f"item {item.instance_name} has neither code nor step_path; cannot rebuild geometry"
+        )
+    return _normalize_part_origin(shape)
 
 
 def export_assembly(
