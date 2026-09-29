@@ -296,10 +296,10 @@ def export_assembly(
     glb_path = out_dir / "assembly.glb"
     try:
         export_glb(glb_parts, glb_path)
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         log.exception("GLB export failed")
         glb_path = None  # type: ignore[assignment]
-        skipped.append("glb")
+        skipped.append(f"glb ({type(exc).__name__}: {exc})")
 
     # Per-part artifacts so the UI can isolate a single component.
     parts_dir = out_dir / "parts"
