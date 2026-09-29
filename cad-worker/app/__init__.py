@@ -1,3 +1,3 @@
 """CADForge CAD worker: CadQuery code generation, validation, and export."""
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"

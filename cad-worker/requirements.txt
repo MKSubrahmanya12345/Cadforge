@@ -11,6 +11,8 @@ uvicorn[standard]==0.34.0
 pydantic==2.10.4
 cadquery==2.4.0
 trimesh==4.5.3
+# trimesh uses SciPy for scene graph and export operations (including GLB).
+scipy==1.14.1
 # CadQuery 2.4.0 still uses NumPy APIs removed in NumPy 2.x (for example
 # numpy.bool8), so keep the worker on the last compatible NumPy 1.x release.
 numpy==1.26.4
