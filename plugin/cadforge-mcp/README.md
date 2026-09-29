@@ -67,8 +67,7 @@ sent, plus download URLs.
   "mcpServers": {
     "cadforge": {
       "type": "streamable-http",
-      "url": "http://localhost:4000/mcp",
-      "headers": { "Authorization": "Bearer YOUR_MCP_API_KEY" }
+      "url": "http://localhost:4000/mcp"
     }
   }
 }
@@ -76,9 +75,7 @@ sent, plus download URLs.
 
 **Hosted** — `mcp.json` in this folder is the agent-plugins manifest, already pointed at Render.
 
-Auth is a single bearer token (`MCP_API_KEY`). CADForge has no user accounts, so there is no per-user
-ownership to resolve; the key is instance-wide, which is why the rate limit is 120 reads and 30 writes
-per minute.
+The MCP endpoint is public and has no authentication. Requests are rate limited by client IP.
 
 `GET /mcp` returns 405 by design: the server is stateless, so there is no server-initiated stream to
 open.

@@ -4,8 +4,7 @@
  * src/env.ts validates the environment at import time and fails fast, which is
  * the right behaviour for `bun run dev` but would make unit tests impossible to
  * run without real credentials. It also calls dotenv, which loads the repo's
- * real .env — including a real MCP_API_KEY and whatever MCP_AUTH_DISABLED is set
- * to.
+ * real .env.
  *
  * These assignments are deliberately unconditional, not `??=`: a test must be
  * hermetic. A developer's real .env must not be able to change what the test
@@ -20,8 +19,6 @@ const TEST_ENV: Record<string, string> = {
   LOG_LEVEL: 'error',
   STORAGE_DIR: './storage',
   CAD_WORKER_URL: 'http://127.0.0.1:8000',
-  MCP_API_KEY: 'test-mcp-key-not-real',
-  MCP_AUTH_DISABLED: 'false',
 };
 
 for (const [key, value] of Object.entries(TEST_ENV)) {

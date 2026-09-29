@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { MCP_TOOLS, advertisedTools, getMcpTool } from '../mcp/tools.js';
-import { authorize, buildMcpServer, mcpAuthMode, mcpConfigured, takeQuota } from '../mcp/server.js';
-import { env } from '../env.js';
+import { buildMcpServer, takeQuota } from '../mcp/server.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -108,42 +107,6 @@ describe('tool registry', () => {
     const props = build!.inputSchema['properties'] as Record<string, unknown>;
     expect(Object.keys(props)).toContain('parts');
     expect(props['parts']).toBeDefined();
-  });
-});
-
-describe('authorization', () => {
-  test('MCP is configured when a key is present', () => {
-    expect(mcpConfigured()).toBe(true);
-    expect(env.MCP_API_KEY.length).toBeGreaterThan(0);
-  });
-
-  test('the correct bearer key is accepted', () => {
-    const result = authorize({ headers: { authorization: `Bearer ${env.MCP_API_KEY}` } } as never);
-    expect(result.ok).toBe(true);
-  });
-
-  test('a wrong bearer key is refused with 401', () => {
-    const result = authorize({ headers: { authorization: 'Bearer wrong-key' } } as never);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.status).toBe(401);
-      expect(result.code).toBe('unauthorized');
-    }
-  });
-
-  test('a missing header is refused with 401', () => {
-    const result = authorize({ headers: {} } as never);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.status).toBe(401);
-  });
-
-  test('a non-bearer scheme is refused', () => {
-    const result = authorize({ headers: { authorization: `Basic ${env.MCP_API_KEY}` } } as never);
-    expect(result.ok).toBe(false);
-  });
-
-  test('auth mode is bearer by default in tests', () => {
-    expect(mcpAuthMode()).toBe('bearer');
   });
 });
 

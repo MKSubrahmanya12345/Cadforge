@@ -5,14 +5,12 @@
  *   bun run test:mcp -- --http http://localhost:4000/mcp
  *
  * Without --http it exercises the transport in-process, so it works with no
- * server running. With --http it also proves the bearer key and the Express
- * wiring, which is the part an in-process test cannot reach.
+ * server running. With --http it also proves the Express wiring.
  */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { env } from '../env.js';
-import { authorize, buildMcpServer, mcpConfigured, mcpAuthMode } from './server.js';
+import { buildMcpServer } from './server.js';
 import { MCP_TOOLS, getMcpTool } from './tools.js';
 
 let failures = 0;
@@ -107,9 +105,7 @@ async function runInProcess(): Promise<void> {
 
 async function runHttp(url: string): Promise<void> {
   const transport = new StreamableHTTPClientTransport(new URL(url), {
-    requestInit: {
-      headers: env.MCP_API_KEY.length > 0 ? { authorization: `Bearer ${env.MCP_API_KEY}` } : {},
-    },
+    requestInit: {},
   });
   const client = new Client({ name: 'cadforge-selftest', version: '1.0.0' });
   try {
@@ -124,39 +120,10 @@ async function runHttp(url: string): Promise<void> {
   check('tool call over HTTP returns a validation error', result.isError === true);
   await client.close();
 
-  // A bad key must be refused before any tool runs.
-  const badTransport = new StreamableHTTPClientTransport(new URL(url), {
-    requestInit: { headers: { authorization: 'Bearer wrong-key' } },
-  });
-  try {
-    await new Client({ name: 'x', version: '1' }).connect(badTransport);
-    check('a wrong bearer key is rejected', false, 'connection unexpectedly succeeded');
-  } catch {
-    check('a wrong bearer key is rejected', true);
-  }
 }
 
 async function main(): Promise<number> {
   const httpUrl = parseHttpUrl(process.argv.slice(2));
-
-  section('configuration');
-  check('MCP_API_KEY is set, or auth is explicitly disabled', mcpConfigured());
-  console.log(`        auth mode: ${mcpAuthMode()}`);
-  if (mcpAuthMode() === 'none' && env.NODE_ENV === 'production') {
-    check('auth is NOT disabled in production', false, 'MCP_AUTH_DISABLED must never be true in production');
-  } else {
-    check('auth is NOT disabled in production', true);
-  }
-
-  section('authorization');
-  const good = authorize({ headers: { authorization: `Bearer ${env.MCP_API_KEY}` } } as never);
-  check('a valid bearer key is accepted', good.ok === true);
-  if (env.MCP_API_KEY.length > 0) {
-    const bad = authorize({ headers: { authorization: 'Bearer nope' } } as never);
-    check('a wrong bearer key is refused with 401', !bad.ok && bad.status === 401);
-    const none = authorize({ headers: {} } as never);
-    check('a missing Authorization header is refused with 401', !none.ok && none.status === 401);
-  }
 
   section('tool registry');
   const names = MCP_TOOLS.map((t) => t.name);

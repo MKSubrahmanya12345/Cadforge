@@ -1,7 +1,7 @@
 services:
   # ---------------------------------------------------------------------------
   # The API server. This is also where /mcp lives, so MCP needs nothing beyond
-  # this one service: same origin, same auth, same deploy.
+  # this one service: same origin and same deploy.
   # ---------------------------------------------------------------------------
   - type: web
     name: cadforge
@@ -25,12 +25,6 @@ services:
         value: claude-sonnet-4-5
       - key: TAVILY_API_KEY
         sync: false
-
-      # Do NOT set MCP_AUTH_DISABLED. With NODE_ENV=production the process
-      # refuses to start if it is true, which is the point: the flag would serve
-      # /mcp with no bearer token at all.
-      - key: MCP_API_KEY
-        generateValue: true
 
       # The image serves the built client from this same origin, so there is
       # nothing to allow. Set this to the deployed host

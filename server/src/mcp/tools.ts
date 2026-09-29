@@ -6,9 +6,7 @@
  * sources and confidence, and nothing is called "done" until the pipeline
  * actually finished.
  *
- * Authentication is a single bearer token (MCP_API_KEY). CADForge has no user
- * accounts, so there is no per-user ownership to resolve — the key grants
- * access to the whole instance, which is why it is rate limited.
+ * The HTTP transport rate limits requests by client IP.
  */
 
 export type McpErrorKind = 'validation' | 'not_found' | 'conflict' | 'refused' | 'upstream';

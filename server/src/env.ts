@@ -40,16 +40,6 @@ const EnvSchema = z.object({
   CAD_WORKER_URL: z.string().url().default('http://127.0.0.1:8000'),
   MAX_PARTS_PER_PROJECT: z.coerce.number().int().min(1).max(50).default(12),
 
-  // MCP (Model Context Protocol) server. See server/src/mcp/.
-  // Leave MCP_API_KEY empty and the /mcp endpoint reports 503 with instructions,
-  // rather than serving tools to anyone who finds the URL.
-  MCP_API_KEY: z.string().default(''),
-  // Escape hatch for local testing only. NODE_ENV=production refuses to start
-  // with this on, so an unauthenticated /mcp can never reach a deployed host.
-  MCP_AUTH_DISABLED: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -75,10 +65,3 @@ export function loadEnvStrict(source: NodeJS.ProcessEnv = process.env): Env {
 }
 
 export const env: Env = loadEnvStrict();
-
-if (env.MCP_AUTH_DISABLED && env.NODE_ENV === 'production') {
-  throw new Error(
-    'Refusing to start: MCP_AUTH_DISABLED=true with NODE_ENV=production would serve /mcp with no ' +
-      'bearer token. Set MCP_API_KEY and MCP_AUTH_DISABLED=false.',
-  );
-}

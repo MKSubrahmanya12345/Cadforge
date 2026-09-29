@@ -242,19 +242,6 @@ CAD_WORKER_URL=http://127.0.0.1:8000
 # Hard ceiling on generations per project (protects your API budget)
 MAX_PARTS_PER_PROJECT=12
 
-# ---------------------------------------------------------------------- MCP ---
-# Bearer token that MCP clients (ChatGPT connector, Claude, Cursor, ...) must
-# send as:  Authorization: Bearer <this value>
-# Generate one with:  openssl rand -hex 32     (or: bun -e "console.log(crypto.randomUUID())")
-# Leave it EMPTY and POST /mcp returns 503 with instructions, so an unconfigured
-# install never serves tools to anyone who finds the URL.
-MCP_API_KEY=
-
-# Escape hatch for local testing only. With this true the bearer token is not
-# enforced. The server REFUSES TO START if this is true while NODE_ENV=production,
-# so an unauthenticated /mcp can never reach a deployed host.
-MCP_AUTH_DISABLED=false
-
 # ------------------------------------------------------------------ CLIENT ---
 # Vite reads this from client/.env (see client/.env.example).
 VITE_API_URL=http://localhost:4000
@@ -610,31 +597,23 @@ before trusting the model.
 
 ## 7. Using the MCP server
 
-CADForge exposes its whole pipeline over the Model Context Protocol, so an agent can generate CAD
-directly. Full detail is in `plugin/cadforge-mcp/README.md`; the short version:
+CADForge exposes its tools over the Model Context Protocol. The endpoint is public and rate limited;
+no key or Authorization header is required. Full detail is in `plugin/cadforge-mcp/README.md`.
 
-**1. Generate a key and put it in `.env`:**
-
-```bash
-bun -e "console.log(crypto.randomUUID().replace(/-/g,''))"
-# paste the output as MCP_API_KEY=... in .env, then restart the server
-```
-
-**2. Verify the tools work:**
+**1. Verify the tools work:**
 
 ```bash
 bun run --cwd server test:mcp
 ```
 
-**3. Point a client at it.** For a local server:
+**2. Point a client at it.** For a local server:
 
 ```json
 {
   "mcpServers": {
     "cadforge": {
       "type": "streamable-http",
-      "url": "http://localhost:4000/mcp",
-      "headers": { "Authorization": "Bearer YOUR_MCP_API_KEY" }
+      "url": "http://localhost:4000/mcp"
     }
   }
 }
@@ -642,7 +621,7 @@ bun run --cwd server test:mcp
 
 `plugin/cadforge-mcp/mcp.json` is the ready-made manifest for a hosted deployment.
 
-**4. Typical agent flow:**
+**3. Typical agent flow:**
 
 ```
 cadforge_health
@@ -778,10 +757,6 @@ pressure — seed more parts so research runs less often (`bun run seed` after a
 **Fix:** you skipped section 3.2. Create `.env` from `.env.example` and fill in the four required
 values. The error lists exactly what is missing, so you can fix everything in one pass.
 
-If you see `MCP_AUTH_DISABLED=true` mentioned, that is a safety interlock: the server refuses to
-start with MCP auth disabled in production. Set `MCP_AUTH_DISABLED=false` and supply an
-`MCP_API_KEY`.
-
 ### "bun: command not found" (Windows)
 
 Close and reopen your terminal, or add `%USERPROFILE%\.bun\bin` to your `PATH`. Verify with
@@ -897,9 +872,7 @@ at the repo.
    `https://cadforge-worker.onrender.com`) and redeploy the API.
 3. Set `CLIENT_ORIGIN` to the API's own URL. The image serves the built client from the same
    origin, so CORS is not in the request path.
-4. Set `MCP_API_KEY` in the API service. **Leave `MCP_AUTH_DISABLED` unset** — with
-   `NODE_ENV=production` the process refuses to start if it is true, which is deliberate.
-5. `MONGODB_URI`, `ANTHROPIC_API_KEY`, and `TAVILY_API_KEY` are all prompted for on first deploy.
+4. `MONGODB_URI`, `ANTHROPIC_API_KEY`, and `TAVILY_API_KEY` are prompted for on first deploy.
 
 **No shared disk is required.** The worker writes the artifacts and the API proxies its `/files`
 mount through the worker (`isWorkerLocal()` in `server/src/app.ts` picks between proxying and
@@ -945,10 +918,9 @@ If you host the client separately instead of letting the API serve it, set `VITE
 API's origin at build time. The API then skips its static mount — it logs
 `no client build found` — and CORS is handled by `CLIENT_ORIGIN`.
 
-### 9.5 Security notes before you expose this publicly
+### 9.5 Deployment notes
 
-- [ ] `MCP_API_KEY` is set to a real random value and never committed
-- [ ] `MCP_AUTH_DISABLED=false` and `NODE_ENV=production` (the server enforces this pairing)
+- [ ] MCP is publicly reachable and rate limited by client IP
 - [ ] `CLIENT_ORIGIN` lists only your real client origins
 - [ ] MongoDB Atlas network access is tightened from `0.0.0.0/0` to your host IPs if you can
 - [ ] The storage directory is not inside the web root; CADForge serves it read-only at `/files`
@@ -989,7 +961,7 @@ cd .. && bun run --cwd server test:mcp
 | <http://localhost:5173> | The UI |
 | <http://localhost:4000/api/health> | Health check (mongo, worker, llm, search) |
 | <http://localhost:8000/health> | CadQuery worker health |
-| <http://localhost:4000/mcp> | MCP endpoint (bearer token required) |
+| <http://localhost:4000/mcp> | Public MCP endpoint (rate limited) |
 | <http://localhost:4000/files/> | Generated artifacts |
 
 ## Deployed (Render)

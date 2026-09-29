@@ -3,10 +3,7 @@
   "mcpServers": {
     "cadforge": {
       "type": "streamable-http",
-      "url": "https://cadforge.onrender.com/mcp",
-      "headers": {
-        "Authorization": "Bearer ${CADFORGE_MCP_API_KEY}"
-      }
+      "url": "https://cadforge.onrender.com/mcp"
     }
   }
 }
