@@ -22,7 +22,7 @@ import {
 import { z } from 'zod';
 import { deterministicCodeFor } from '../pipeline/generate.js';
 import { resolveAssembly } from '../pipeline/stages.js';
-import { createProjectDoc } from './store.js';
+import { createProject, updateProject } from '../models/project.js';
 import { workerExport } from '../worker.js';
 
 const PartInputSchema = PartSpecSchema.partial({
@@ -315,14 +315,24 @@ export async function buildFromSpec(input: {
 
   // ---- 5. Build through the worker --------------------------------------
   const modelName = input.name?.trim() || `cadforge-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}`;
-  const projectId = await createProjectDoc({
-    prompt: `agent-built: ${modelName}`,
-    parts: specs,
-    assembly: assembly.map((a) => ({
-      ...a,
-      resolvedPosition_mm: placements.get(a.instanceName)?.position ?? { x: 0, y: 0, z: 0 },
-    })),
-    name: modelName,
+  // Use the same persistent project collection as the web app. This makes
+  // agent-built models discoverable in the frontend and survives API restarts.
+  const project = await createProject(modelName);
+  const projectId = String(project._id);
+  const resolvedAssembly = assembly.map((a) => ({
+    ...a,
+    resolvedPosition_mm: placements.get(a.instanceName)?.position ?? { x: 0, y: 0, z: 0 },
+  }));
+  const now = new Date().toISOString();
+  await updateProject(projectId, {
+    status: 'exporting',
+    progress: 84,
+    assembly: resolvedAssembly,
+    plan: {
+      parts: specs.map((spec) => ({ name: spec.name, quantity: 1, role: spec.id === base.id ? 'base board' : 'component' })),
+      relations: [],
+    },
+    logs: [{ ts: now, stage: 'build', level: 'info', message: `Building ${modelName} from ${specs.length} specified parts` }],
   });
 
   let exportResponse;
@@ -345,6 +355,7 @@ export async function buildFromSpec(input: {
       }),
     );
   } catch (err) {
+    await updateProject(projectId, { status: 'failed', error: err instanceof Error ? err.message : String(err) });
     return {
       error:
         `The CadQuery worker could not be reached: ${err instanceof Error ? err.message : String(err)}. ` +
@@ -361,6 +372,7 @@ export async function buildFromSpec(input: {
   }
 
   if (!exportResponse.ok) {
+    await updateProject(projectId, { status: 'failed', error: exportResponse.error ?? 'unknown worker error' });
     return {
       error: `The worker failed to export: ${exportResponse.error ?? 'unknown error'}`,
       errorKind: 'upstream',
@@ -374,6 +386,7 @@ export async function buildFromSpec(input: {
     };
   }
   if (!exportResponse.step_path) {
+    await updateProject(projectId, { status: 'failed', error: 'No STEP file was produced' });
     return {
       error:
         'No STEP file was produced. STEP is the source of truth for a CADForge model, so there is nothing to hand back.',
@@ -438,6 +451,29 @@ export async function buildFromSpec(input: {
   for (const skip of exportResponse.skipped) {
     notes.push(`${skip} export was skipped`);
   }
+
+  // The worker returns its own absolute filesystem paths. The API may run in a
+  // different container, so persist the shared /files route path, not that
+  // worker-local path. The export endpoint writes these fixed filenames under
+  // the project id directory.
+  const relativePath = (absolute: string | null, filename: string): string | null =>
+    absolute ? `${projectId}/${filename}` : null;
+  await updateProject(projectId, {
+    status: 'complete',
+    progress: 100,
+    error: null,
+    artifacts: {
+      step: relativePath(exportResponse.step_path, 'assembly.step'),
+      glb: relativePath(exportResponse.glb_path, 'assembly.glb'),
+      stl: relativePath(exportResponse.stl_path, 'assembly.stl'),
+      fcstd: relativePath(exportResponse.fcstd_path, 'assembly.FCStd'),
+    },
+    scaleChecks: [],
+    logs: [
+      { ts: now, stage: 'build', level: 'info', message: `Built ${modelName} from ${specs.length} specified parts` },
+      { ts: new Date().toISOString(), stage: 'export', level: 'success', message: `STEP, GLB, and STL artifacts exported` },
+    ],
+  });
 
   const structured: Record<string, unknown> = {
     projectId,
