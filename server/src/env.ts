@@ -16,9 +16,14 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
 
-  ANTHROPIC_API_KEY: z.string().min(1, 'ANTHROPIC_API_KEY is required — get one at https://console.anthropic.com/settings/keys'),
+  // Optional. The MCP surface is a pure CAD service: the calling agent (ChatGPT,
+  // Claude, anything) does the research and the planning, then hands us explicit
+  // dimensions. A key is only needed for the optional web-UI pipeline, which
+  // runs its own LLM stages. Leaving these empty disables that path and nothing
+  // else — /mcp works with no keys at all.
+  ANTHROPIC_API_KEY: z.string().default(''),
   ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-4-5'),
-  TAVILY_API_KEY: z.string().min(1, 'TAVILY_API_KEY is required — get one at https://app.tavily.com/home'),
+  TAVILY_API_KEY: z.string().default(''),
 
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required — Atlas URI or mongodb://127.0.0.1:27017/cadforge'),
 

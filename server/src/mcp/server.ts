@@ -22,7 +22,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { env } from '../env.js';
 import { createLogger } from '../logger.js';
-import { getMcpTool, MCP_TOOLS, MCP_WRITE_TOOLS, type McpToolResult } from './tools.js';
+import { advertisedTools, getMcpTool, type McpToolResult } from './tools.js';
 
 const log = createLogger('mcp');
 
@@ -121,22 +121,40 @@ export function takeQuota(key: string, isWrite: boolean): RateVerdict {
   };
 }
 
+/**
+ * The optional LLM pipeline (PLAN / RESEARCH / GENERATE) needs both keys. The
+ * core CAD tools do not, which is the point: an agent drives the model and we
+ * only build it.
+ */
+function llmPipelineEnabled(): boolean {
+  return env.ANTHROPIC_API_KEY.length > 0 && env.TAVILY_API_KEY.length > 0;
+}
+
 export function buildMcpServer(): Server {
   const server = new Server(
-    { name: 'cadforge', version: '1.0.0' },
+    { name: 'cadforge', version: '2.0.0' },
     {
       capabilities: { tools: {} },
       instructions:
-        'CADForge generates true-scale parametric CAD from a natural-language request. It researches real ' +
-        'dimensions from datasheets, so a part in a model is the size that part really is. Start with ' +
-        'create_cad_project, then wait_for_cad_project, then get_cad_artifacts. Use list_parts and get_part ' +
-        'to inspect or confirm dimensions — every PartSpec carries its source URLs and a confidence score. ' +
-        'All geometry is millimetres unless a tool says otherwise; GLB exports are metres and Y-up.',
+        'CADForge builds true-scale CAD models from parts you specify. It is a CAD service, not an agent: ' +
+        'YOU do the research, the planning, and the choosing of parts. CADForge takes explicit ' +
+        'millimetre dimensions and turns them into real geometry at exactly that scale, then checks the ' +
+        'built solid against your numbers and exports STEP + GLB + STL.\n\n' +
+        'How to use it:\n' +
+        '1. Research the real dimensions yourself (web search, datasheets). Prefer manufacturer drawings.\n' +
+        '2. Call build_cad_model with each part\'s bbox_mm, features, and anchors in millimetres.\n' +
+        '3. Read the verification block it returns. It reports the size measured off the built solid, not ' +
+        'the numbers you sent, so a disagreement means a dimension is wrong.\n' +
+        '4. Download from the URLs it returns. STEP is the source of truth; GLB is metres and Y-up for a ' +
+        'web viewer; STL is millimetres and Z-up.\n\n' +
+        'Real parts are not round numbers. An Arduino Uno is 68.58 x 53.34 x 1.6 mm, not 70 x 50 x 2. A ' +
+        '5mm LED is a 5.0 mm dome. Using round numbers is how a model ends up 1000x out, and because ' +
+        'nothing here second-guesses you, that error reaches the file.',
     },
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: MCP_TOOLS.map((tool) => ({
+    tools: advertisedTools(llmPipelineEnabled()).map((tool) => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
@@ -298,4 +316,4 @@ function sendWebResponse(
   })();
 }
 
-export { MCP_TOOLS, MCP_WRITE_TOOLS };
+export { advertisedTools, getMcpTool };

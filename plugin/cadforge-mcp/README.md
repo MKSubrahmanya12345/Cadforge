@@ -1,23 +1,66 @@
 # CADForge MCP server
 
-CADForge exposes its whole pipeline over the [Model Context Protocol](https://modelcontextprotocol.io)
-so an agent (ChatGPT connector, Claude, Cursor, Zed, anything MCP) can generate
-real-scale CAD and get STEP/GLB/STL back.
+CADForge is a **CAD service, not an agent**. The model calling it does all the thinking; CADForge
+does the geometry.
 
-## How it works
+That split is deliberate. An LLM guessing a dimension is the exact failure this project exists to
+prevent, so nothing here guesses one. Every millimetre value in a CADForge model arrives as a number
+the caller stated, gets built into real solid geometry through CadQuery, gets measured back, and gets
+compared against what was asked for. If the caller got a dimension wrong, the error is in the file
+and the verification says so — instead of a plausible-looking model nobody can audit.
 
-`POST /mcp` — streamable HTTP, **stateless**. Every request builds a fresh MCP
-server and transport bound to the authenticated caller, so there is no session
-to expire and nothing shared between requests. That is what lets you deploy it
-behind a CDN or on a platform that runs many instances.
+## Tools
 
-Auth is a single bearer token (`MCP_API_KEY`). CADForge has no user accounts, so
-there is no per-user ownership to resolve; the key is instance-wide, which is
-why the rate limit is not optional (120 reads/min, 30 writes/min).
+| Tool | What it does |
+| --- | --- |
+| `build_cad_model` | **The primary one.** Takes parts with explicit `bbox_mm`, `features`, and `anchors`; builds, verifies, and exports STEP + GLB + STL. |
+| `list_parts` | Search a reference library of datasheet dimensions, for checking your own research. |
+| `get_part` | One reference part in full, with the source URL each dimension came from. |
+| `cadforge_health` | Is the CadQuery worker up. |
 
-## Point a client at it
+An optional self-contained pipeline (`create_cad_project`, `wait_for_cad_project`, …) is advertised
+**only** when the server has `ANTHROPIC_API_KEY` and `TAVILY_API_KEY`. Those tools are hidden rather
+than refused, so an agent never plans its way into a dead end. They are not needed for
+`build_cad_model`.
 
-**Local**, from `server/.env` (or the repo root `.env`):
+## How to use it
+
+```
+cadforge_health                      # confirm the worker is reachable
+list_parts { q: "arduino uno" }      # optional: cross-check a dimension
+get_part { idOrName: "arduino-uno-r3" }
+build_cad_model {
+  parts: [
+    { id: "uno", name: "Arduino Uno R3",
+      bbox_mm: { x: 68.58, y: 53.34, z: 1.6 },
+      anchors: [ { name: "D13_pin", position_mm: { x: 59.69, y: 48.26, z: 1.6 } } ] },
+    { id: "led", name: "5mm LED",
+      bbox_mm: { x: 5.8, y: 5.8, z: 8.6 },
+      anchors: [ { name: "lead_1", position_mm: { x: 1.27, y: 0, z: 0 } } ] }
+  ],
+  placements: [
+    { partId: "uno" },
+    { partId: "led", anchorRef: { targetInstance: "uno_1", anchorName: "D13_pin" } }
+  ]
+}
+```
+
+The response reports the assembly size **measured off the built solid**, not the numbers that were
+sent, plus download URLs.
+
+## Units and frames
+
+- **Everything is millimetres, Z-up**, origin at the lower-left corner of the part.
+- `bbox_mm` is an overall size, not a corner position. `features[].position_mm` and
+  `anchors[].position_mm` are absolute, measured from that same origin.
+- **STEP and STL are millimetres, Z-up.** **GLB is metres, Y-up** (the glTF convention) and is
+  scaled by 0.001 for web viewers.
+- Real parts are not round numbers. An Uno is 68.58 × 53.34 × 1.6 mm. Using 70 × 50 × 2 puts a 1000x
+  error into the model, and nothing here will correct it for you.
+
+## Connecting
+
+**Local** (`http://localhost:4000/mcp`):
 
 ```json
 {
@@ -31,36 +74,14 @@ why the rate limit is not optional (120 reads/min, 30 writes/min).
 }
 ```
 
-**Hosted** — `plugin/cadforge-mcp/mcp.json` is the agent-plugins manifest, already
-pointed at the Render deployment. Change the `url` to your own host.
+**Hosted** — `mcp.json` in this folder is the agent-plugins manifest, already pointed at Render.
 
-## Tools
+Auth is a single bearer token (`MCP_API_KEY`). CADForge has no user accounts, so there is no per-user
+ownership to resolve; the key is instance-wide, which is why the rate limit is 120 reads and 30 writes
+per minute.
 
-| Tool | What it does |
-| --- | --- |
-| `create_cad_project` | Start a project from a description. Returns a `projectId` immediately. |
-| `wait_for_cad_project` | Block until it completes or fails. Use this instead of polling. |
-| `get_cad_project` | Status, plan, assembly with world placements, scale checks, log tail. |
-| `get_cad_artifacts` | Download URLs for STEP / GLB / STL / FCStd. |
-| `list_cad_projects` | Recent projects. |
-| `list_parts` | Search the parts library. Every entry is a sourced PartSpec. |
-| `get_part` | One PartSpec in full: dimensions, features, anchors, source URLs, confidence. |
-| `verify_part` | Mark a PartSpec human-verified so it is never re-researched. |
-| `delete_part` / `delete_cad_project` | Remove a spec or a project record. |
-| `cadforge_health` | Mongo, CadQuery worker, LLM key, search key. |
-
-## Typical agent flow
-
-```
-cadforge_health
-  -> list_parts { q: "5mm led" }        # confirm the part exists and is sourced
-  -> create_cad_project { prompt: "Arduino Uno with a 5mm LED on pin 13" }
-  -> wait_for_cad_project { projectId, timeoutSeconds: 300 }
-  -> get_cad_artifacts { projectId }    # download URLs
-```
-
-`get_part` is the audit trail: if an agent claims a dimension, that dimension is
-in the PartSpec with the URL it came from and a confidence score.
+`GET /mcp` returns 405 by design: the server is stateless, so there is no server-initiated stream to
+open.
 
 ## Verify it works
 
@@ -68,16 +89,6 @@ in the PartSpec with the URL it came from and a confidence score.
 # in-process, no server needed
 bun run --cwd server test:mcp
 
-# against a running server (proves auth + Express wiring)
+# against a running server, which also proves the bearer key and Express wiring
 bun run --cwd server test:mcp -- --http http://localhost:4000/mcp
 ```
-
-`test:mcp` checks that every tool is advertised with a schema, that bad input is
-refused with a readable message rather than a stack trace, that an unknown tool
-name is refused, and that a wrong bearer key is rejected.
-
-## Units
-
-Every tool reports millimetres unless it says otherwise. GLB is metres and Y-up
-(glTF convention); STEP and STL are millimetres and Z-up, with the origin at the
-lower-left corner of the base part.

@@ -1,7 +1,7 @@
 {
   "name": "cadforge-mcp",
-  "version": "1.0.0",
-  "description": "Generate true-scale parametric CAD (STEP/GLB/STL) from a natural-language description, with every dimension traced to a datasheet.",
+  "version": "2.0.0",
+  "description": "Build true-scale CAD models (STEP/GLB/STL) from parts you specify. You supply real millimetre dimensions; CADForge builds real geometry at exactly that scale and verifies it.",
   "author": { "name": "CADForge" },
   "mcpServers": {
     "cadforge": {
@@ -10,16 +10,10 @@
     }
   },
   "tools": [
-    "create_cad_project",
-    "get_cad_project",
-    "wait_for_cad_project",
-    "list_cad_projects",
-    "get_cad_artifacts",
+    "build_cad_model",
     "list_parts",
     "get_part",
-    "verify_part",
-    "delete_part",
-    "delete_cad_project",
     "cadforge_health"
-  ]
+  ],
+  "notes": "The optional self-contained pipeline (create_cad_project and friends) is advertised automatically when the server has ANTHROPIC_API_KEY and TAVILY_API_KEY set. It is not required for build_cad_model."
 }

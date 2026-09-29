@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { MCP_TOOLS, MCP_WRITE_TOOLS, getMcpTool } from '../mcp/tools.js';
+import { MCP_TOOLS, advertisedTools, getMcpTool } from '../mcp/tools.js';
 import { authorize, buildMcpServer, mcpAuthMode, mcpConfigured, takeQuota } from '../mcp/server.js';
 import { env } from '../env.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -81,11 +81,33 @@ describe('tool registry', () => {
     expect(del?.inputSchema['required']).toEqual(['projectId', 'confirmProjectId']);
   });
 
-  test('write tools are marked as such', () => {
-    expect(MCP_WRITE_TOOLS.has('create_cad_project')).toBe(true);
-    expect(MCP_WRITE_TOOLS.has('delete_part')).toBe(true);
-    expect(MCP_WRITE_TOOLS.has('list_parts')).toBe(false);
-    expect(MCP_WRITE_TOOLS.has('get_cad_project')).toBe(false);
+  test('the core tools survive with no LLM pipeline configured', () => {
+    // The whole point of the agent-driven path: an agent can build models
+    // without this server holding an Anthropic or Tavily key.
+    const core = advertisedTools(false).map((t) => t.name);
+    expect(core).toContain('build_cad_model');
+    expect(core).toContain('list_parts');
+    expect(core).toContain('get_part');
+    expect(core).toContain('cadforge_health');
+    // The self-contained pipeline is hidden, not advertised and then refused.
+    expect(core).not.toContain('create_cad_project');
+  });
+
+  test('every tool is advertised when the pipeline is configured', () => {
+    expect(advertisedTools(true).map((t) => t.name).sort()).toEqual(
+      MCP_TOOLS.map((t) => t.name).sort(),
+    );
+  });
+
+  test('build_cad_model is the primary tool and takes explicit millimetres', () => {
+    const build = getMcpTool('build_cad_model');
+    expect(build).not.toBeNull();
+    // The agent must be told it owns the research, or it will assume we guess.
+    expect(build!.description).toContain('YOU do the research');
+    expect(build!.description).toContain('millimetre');
+    const props = build!.inputSchema['properties'] as Record<string, unknown>;
+    expect(Object.keys(props)).toContain('parts');
+    expect(props['parts']).toBeDefined();
   });
 });
 

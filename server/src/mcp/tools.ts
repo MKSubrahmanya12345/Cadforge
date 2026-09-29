@@ -13,6 +13,20 @@
 
 export type McpErrorKind = 'validation' | 'not_found' | 'conflict' | 'refused' | 'upstream';
 
+/**
+ * This server is a CAD service, not an agent.
+ *
+ * The calling model (ChatGPT, Claude, anything) does all the thinking: it
+ * researches datasheets, decides which parts are needed, and works out the
+ * dimensions. It then hands us explicit millimetre values and we do the part we
+ * are actually good at — building real geometry at that exact scale, checking
+ * the result, and exporting it.
+ *
+ * That division is the whole point. An LLM guessing a dimension is the failure
+ * mode this project exists to prevent, so we never let one: every number in a
+ * CADForge model arrives as a stated value from the caller, gets built, then
+ * gets measured back and compared.
+ */
 export interface McpToolResult {
   content: Array<{ type: 'text'; text: string }>;
   structuredContent?: Record<string, unknown>;
@@ -227,10 +241,12 @@ function projectSummary(p: {
 const createProject: McpTool = {
   name: 'create_cad_project',
   description:
-    'Start a CADForge project from a natural-language description ("Arduino Uno with a 5mm LED on pin 13"). ' +
-    'Returns immediately with a projectId; the pipeline runs in the background. ' +
-    'Follow up with get_cad_project or wait_for_cad_project to see the result. ' +
-    'Real dimensions are researched from datasheets — the model will be true-scale, so a 5mm LED is LED-sized next to a 53.34mm-wide board.',
+    'OPTIONAL PIPELINE, not the main tool. Starts a self-contained CADForge pipeline that plans, ' +
+    'researches datasheets, and writes CadQuery code itself. It needs ANTHROPIC_API_KEY and TAVILY_API_KEY ' +
+    'on the server and is hidden when they are absent.\n\n' +
+    'Prefer build_cad_model: you already know the parts and the dimensions, and research you do yourself is ' +
+    'more reliable than a second model doing it. Use this only when you want CADForge to take a plain ' +
+    'sentence and return a model with no dimensions from you at all.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -259,6 +275,181 @@ const createProject: McpTool = {
         'or get_cad_project to poll. Events are also streamed at GET /api/projects/<id>/events.',
       { projectId },
     );
+  },
+};
+
+/** One part as the agent states it. Every dimension is explicit millimetres. */
+const PART_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    id: {
+      type: 'string',
+      description: 'Stable kebab-case id you will reuse when placing this part.',
+    },
+    name: { type: 'string', description: 'Human name, e.g. "Arduino Uno R3".' },
+    color_hex: { type: 'string', description: 'Optional #rrggbb for the viewer.' },
+    bbox_mm: {
+      type: 'object',
+      description:
+        'Overall size in millimetres. This is the single most important value: the built solid is ' +
+        'checked against it and the model is rejected if it disagrees by more than 0.3 mm or 2%.',
+      properties: {
+        x: { type: 'number', description: 'Width along X (left to right).' },
+        y: { type: 'number', description: 'Depth along Y (front to back).' },
+        z: { type: 'number', description: 'Height along Z (up).' },
+      },
+      required: ['x', 'y', 'z'],
+    },
+    features: {
+      type: 'array',
+      description:
+        'Holes, cylinders, pins, pads and cutouts, in absolute millimetres from the part origin. ' +
+        'Every one of these is cut or added as real geometry, then measured back after the build.',
+      items: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['hole', 'cylinder', 'box', 'pin', 'pad', 'cutout'],
+          },
+          name: { type: 'string' },
+          position_mm: {
+            type: 'object',
+            properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } },
+            required: ['x', 'y', 'z'],
+          },
+          dims_mm: {
+            type: 'object',
+            description:
+              'Keys depend on type: hole/cylinder need diameter; cylinder also height; ' +
+              'pin needs diameter and length; box/pad/cutout need x, y, z.',
+            additionalProperties: { type: 'number' },
+          },
+        },
+        required: ['type', 'name', 'position_mm', 'dims_mm'],
+      },
+    },
+    anchors: {
+      type: 'array',
+      description:
+        'Named attachment points in absolute millimetres, used to place this part relative to others. ' +
+        'Give every point another part might connect to: pins, mounting holes, board centre.',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          position_mm: {
+            type: 'object',
+            properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } },
+            required: ['x', 'y', 'z'],
+          },
+        },
+        required: ['name', 'position_mm'],
+      },
+    },
+  },
+  required: ['id', 'name', 'bbox_mm'],
+} as const;
+
+const buildModel: McpTool = {
+  name: 'build_cad_model',
+  description:
+    'Build a true-scale CAD model from parts you specify. YOU do the research and the planning: give this ' +
+    'explicit millimetre dimensions for every part and it builds real geometry at exactly that scale, checks ' +
+    'the built solid against your numbers, and exports STEP + GLB + STL.\n\n' +
+    'This is the primary tool. There is no LLM on the other side — nothing you state is second-guessed or ' +
+    'adjusted, and nothing is invented. If you get a dimension wrong, the model is wrong; check your sources ' +
+    'before calling this.\n\n' +
+    'Units: millimetres, Z-up, origin at the lower-left corner of the part. A 5mm LED is bbox_mm 5.8 x 5.8 x 8.6 ' +
+    'with a 5.0mm dome; an Uno is 68.58 x 53.34 x 1.6. Real parts are not round numbers, and using round ' +
+    'ones is how models end up 1000x out.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Optional label for this model.' },
+      parts: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 24,
+        description: 'The parts, each with explicit real-world dimensions.',
+        items: PART_INPUT_SCHEMA as unknown as Record<string, unknown>,
+      },
+      placements: {
+        type: 'array',
+        description:
+          'Where each part sits, in the order of the parts array. The first entry is the base and goes at ' +
+          'the world origin. Use anchorRef to snap a part onto an anchor of another part; omit it and give an ' +
+          'offset_mm instead. anchorRef.anchorName names an anchor on the TARGET part; we decide which of the ' +
+          'moving part\'s own anchors seats there and resolve the world position deterministically.',
+        items: {
+          type: 'object',
+          properties: {
+            partId: { type: 'string', description: 'The id of the part to place.' },
+            anchorRef: {
+              type: 'object',
+              properties: {
+                targetInstance: { type: 'string' },
+                anchorName: { type: 'string', description: 'An anchor name on the TARGET part.' },
+              },
+              required: ['targetInstance', 'anchorName'],
+            },
+            offset_mm: {
+              type: 'object',
+              properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } },
+            },
+          },
+          required: ['partId'],
+        },
+      },
+      formats: {
+        type: 'array',
+        description: 'Which exports to produce. STEP is always produced; it is the source of truth.',
+        items: { type: 'string', enum: ['step', 'glb', 'stl'] },
+      },
+    },
+    required: ['parts'],
+    additionalProperties: false,
+  },
+  async run(input) {
+    const r = new ArgReader(input);
+    const rawParts = input['parts'];
+    const name = r.str('name', { max: 200 });
+
+    if (!Array.isArray(rawParts) || rawParts.length === 0) {
+      r.fail('parts', 'is required: give at least one part with explicit dimensions');
+      return r.refuse('build_cad_model could not use these arguments.');
+    }
+    if (rawParts.length > 24) {
+      r.fail('parts', 'must have at most 24 entries');
+      return r.refuse('build_cad_model could not use these arguments.');
+    }
+
+    const { buildFromSpec } = await import('./build.js');
+    const result = await buildFromSpec({
+      ...(name ? { name } : {}),
+      parts: rawParts,
+      placements: Array.isArray(input['placements']) ? (input['placements'] as unknown[]) : undefined,
+    });
+
+    if (result.error) {
+      return failed(result.error, result.errorKind ?? 'validation');
+    }
+
+    const lines = [
+      `Built "${result.name}": ${result.parts.length} part(s), assembly ${result.bbox.x.toFixed(2)} x ${result.bbox.y.toFixed(2)} x ${result.bbox.z.toFixed(2)} mm.`,
+      '',
+      'Verification (measured off the built solid, not the numbers you sent):',
+      ...result.checks.map((c) => `  ${c.ok ? 'OK  ' : 'FAIL'} ${c.detail}`),
+      '',
+      'Downloads:',
+      ...Object.entries(result.urls)
+        .filter(([, url]) => url !== null)
+        .map(([format, url]) => `  ${format.toUpperCase().padEnd(6)} ${url}`),
+    ];
+    if (result.notes.length > 0) {
+      lines.push('', ...result.notes.map((n) => `  ${n}`));
+    }
+    return ok(lines.join('\n'), result.structured);
   },
 };
 
@@ -467,9 +658,9 @@ const getArtifacts: McpTool = {
 const listParts: McpTool = {
   name: 'list_parts',
   description:
-    'Search the CADForge parts library. Every entry is a validated PartSpec with real datasheet dimensions, ' +
-    'a confidence score, and source URLs. Use this before researching anything: if the part is here, ' +
-    'the pipeline will use it verbatim and never invent a dimension.',
+    'Search CADForge\'s reference parts library — datasheet dimensions for common parts, with source URLs. ' +
+    'Use this to CHECK a dimension you found yourself: if the Arduino Uno is listed at 68.58 x 53.34 x 1.6 ' +
+    'mm and your research says something else, one of you is wrong. Then pass the values to build_cad_model.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -519,9 +710,9 @@ const listParts: McpTool = {
 const getPart: McpTool = {
   name: 'get_part',
   description:
-    'Read one PartSpec in full: exact bounding box, every feature with its position and dimensions, every ' +
-    'attachment anchor, the source URLs each field came from, and the confidence score. ' +
-    'This is what makes a CADForge model auditable — check a dimension here and you have checked the model.',
+    'Read one reference part in full: exact bounding box, every feature with position and dimensions, every ' +
+    'attachment anchor, and the datasheet URL each value came from. ' +
+    'This is the audit trail — call it to confirm a dimension before passing it to build_cad_model.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -654,9 +845,9 @@ const deleteProject: McpTool = {
 const health: McpTool = {
   name: 'cadforge_health',
   description:
-    'Check that the whole chain is up: MongoDB, the CadQuery worker (with its CadQuery version and ' +
-    'whether FreeCAD/FCStd export is available), the Anthropic key, and the Tavily key. ' +
-    'Call this first if a project fails, so you can tell a pipeline bug from a missing service.',
+    'Check the CAD service is up: the CadQuery worker (with its version), plus whether the optional ' +
+    'LLM pipeline is configured. Call this first if build_cad_model fails, so you can tell a bad dimension ' +
+    'from a missing worker. An unconfigured llm stage is not an error: build_cad_model does not need it.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   async run() {
     const { healthSnapshot } = await import('./bridge.js');
@@ -666,35 +857,54 @@ const health: McpTool = {
       `mongo:      ${h.mongo.ok ? 'ok' : `FAILED — ${h.mongo.error}`}`,
       `cad-worker: ${h.cadWorker.ok ? `ok (CadQuery ${h.cadWorker.cadquery_version}, FCStd ${h.cadWorker.freecad ? 'available' : 'unavailable'})` : `UNREACHABLE — ${h.cadWorker.error}`}`,
       `  url:      ${h.cadWorker.url}`,
-      `llm:        ${h.llm.ok ? `ok (${h.llm.model})` : 'MISSING ANTHROPIC_API_KEY'}`,
-      `search:     ${h.search.ok ? 'ok (tavily)' : 'MISSING TAVILY_API_KEY'}`,
+      `llm:        ${h.llm.ok ? `optional pipeline available (${h.llm.model})` : 'not configured (build_cad_model does not need it)'}`,
+      `search:     ${h.search.ok ? 'ok (tavily)' : 'not configured (build_cad_model does not need it)'}`,
       `uptime:     ${h.uptime_s}s`,
     ];
     return ok(lines.join('\n'), h as unknown as Record<string, unknown>);
   },
 };
 
+/**
+ * Every tool.
+ *
+ * `build_cad_model`, `list_parts`, `get_part` and `cadforge_health` are the core:
+ * an agent drives those with no API key configured on this server at all. The
+ * rest run CADForge's self-contained pipeline and are advertised only when
+ * ANTHROPIC_API_KEY and TAVILY_API_KEY are both set, so an agent never plans its
+ * way into a dead end.
+ */
 export const MCP_TOOLS: readonly McpTool[] = [
+  buildModel,
+  listParts,
+  getPart,
+  health,
   createProject,
   getProject,
   waitForProject,
   listProjects,
   getArtifacts,
-  listParts,
-  getPart,
   verifyPart,
   deletePart,
   deleteProject,
-  health,
 ];
 
-/** The write tools, kept separate so the rate limiter can weight them. */
-export const MCP_WRITE_TOOLS: ReadonlySet<string> = new Set([
+const LLM_PIPELINE_TOOLS: ReadonlySet<string> = new Set([
   'create_cad_project',
+  'get_cad_project',
+  'wait_for_cad_project',
+  'list_cad_projects',
+  'get_cad_artifacts',
   'verify_part',
   'delete_part',
   'delete_cad_project',
 ]);
+
+/** The tools to advertise, given whether the optional pipeline is available. */
+export function advertisedTools(llmPipelineEnabled: boolean): readonly McpTool[] {
+  if (llmPipelineEnabled) return MCP_TOOLS;
+  return MCP_TOOLS.filter((t) => !LLM_PIPELINE_TOOLS.has(t.name));
+}
 
 export function getMcpTool(name: string): McpTool | null {
   return MCP_TOOLS.find((tool) => tool.name === name) ?? null;
