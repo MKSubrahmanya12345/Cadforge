@@ -33,19 +33,7 @@ COPY server ./server
 RUN bunx tsc -p shared/tsconfig.json --noEmit \
     && bunx tsc -p server/tsconfig.json --noEmit
 
-# ---------------------------------------------------------------------------
-
-FROM oven/bun:1.3-debian-slim AS runtime
-
-WORKDIR /app
-
-ENV NODE_ENV=production \
-    PORT=4000 \
-    STORAGE_DIR=./storage \
-    LOG_LEVEL=info
-
-# The client is built in its own stage and only copied in if it builds, so a
-# change to the UI cannot take the API down.
+# The client is built in its own stage so a UI change cannot take the API down.
 FROM build AS client-build
 
 COPY client ./client
@@ -53,7 +41,7 @@ RUN bun run --cwd client build
 
 # ---------------------------------------------------------------------------
 
-FROM oven/bun:1.3-debian-slim AS runtime
+FROM oven/bun:1.3-debian AS runtime
 
 WORKDIR /app
 
