@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+.DS_Store
+storage/
+cad-worker/.venv/
+cad-worker/__pycache__/
+cad-worker/**/__pycache__/
+*.pyc
+.pytest_cache/
+coverage/
+.vite/
+
+*.tsbuildinfo

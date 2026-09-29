@@ -1,0 +1,213 @@
+"""Deterministic geometry builder from a PartSpec.
+
+This is the safety net: whatever the LLM produces, CADForge must always emit a
+model whose dimensions match the validated spec. ``build_fallback`` produces a
+part with exactly ``bbox_mm`` in size, plus one primitive per spec feature.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from app.schemas import PartSpec
+
+#: Hue per category, used when a spec has no explicit colour.
+CATEGORY_COLORS = {
+    "board": "#0f9d58",
+    "led": "#ff3b30",
+    "resistor": "#c8a24b",
+    "capacitor": "#1e90ff",
+    "header": "#2f3e46",
+    "connector": "#8a8f98",
+    "module": "#2b6cb0",
+    "sensor": "#38b2ac",
+    "actuator": "#805ad5",
+    "mechanical": "#718096",
+    "fastener": "#a0aec0",
+    "wire": "#111827",
+    "display": "#4c51bf",
+    "ic": "#1a202c",
+    "other": "#9aa0a6",
+}
+
+
+def default_color(spec: PartSpec) -> str:
+    return spec.color_hex or CATEGORY_COLORS.get(spec.category, "#9aa0a6")
+
+
+def _hole_positions(spec: PartSpec) -> list[tuple[float, float, float, float, float]]:
+    """(x, y, z, diameter, depth) for every hole-ish feature."""
+    out = []
+    for f in spec.features:
+        if f.type != "hole":
+            continue
+        d = float(f.dims_mm.get("diameter", 0.0))
+        if d <= 0:
+            continue
+        depth = float(f.dims_mm.get("depth", spec.bbox_mm.z) or spec.bbox_mm.z)
+        out.append((f.position_mm.x, f.position_mm.y, f.position_mm.z, d, max(depth, 0.1)))
+    return out
+
+
+def build_fallback(spec: PartSpec) -> Any:
+    """Build a cadquery Workplane that matches ``spec`` dimensionally."""
+    import cadquery as cq
+
+    sx, sy, sz = spec.bbox_mm.x, spec.bbox_mm.y, spec.bbox_mm.z
+
+    # Start from the exact bounding box so the scale guarantee holds.
+    solid = cq.Workplane("XY").box(sx, sy, sz, centered=(True, True, False))
+
+    # Cylinders: bosses standing proud of the top face.
+    for f in spec.features:
+        p = f.position_mm
+        d = f.dims_mm
+        if f.type == "cylinder":
+            dia = float(d.get("diameter", 0.0))
+            h = float(d.get("height", 0.0))
+            if dia > 0 and h > 0:
+                solid = solid.union(
+                    cq.Workplane("XY", origin=(p.x - sx / 2, p.y - sy / 2, sz))
+                    .circle(dia / 2)
+                    .extrude(h)
+                )
+        elif f.type == "pin":
+            dia = float(d.get("diameter", 0.0))
+            length = float(d.get("length", 0.0))
+            count = int(d.get("count", 1) or 1)
+            pitch = float(d.get("pitch", 0.0) or 0.0)
+            if dia > 0 and length > 0:
+                for i in range(count):
+                    ox = (i - (count - 1) / 2) * pitch if count > 1 else 0.0
+                    solid = solid.union(
+                        cq.Workplane("XY", origin=(p.x - sx / 2 + ox, p.y - sy / 2, sz))
+                        .circle(dia / 2)
+                        .extrude(length)
+                    )
+        elif f.type == "box":
+            bx = float(d.get("x", 0.0))
+            by = float(d.get("y", 0.0))
+            bz = float(d.get("z", 0.0))
+            if bx > 0 and by > 0 and bz > 0:
+                solid = solid.union(
+                    cq.Workplane("XY", origin=(p.x - sx / 2, p.y - sy / 2, sz))
+                    .center(0, 0)
+                    .box(bx, by, bz, centered=(True, True, False))
+                    .translate((p.x - sx / 2, p.y - sy / 2, sz))
+                )
+        elif f.type == "cutout":
+            cx_ = float(d.get("x", 0.0))
+            cy_ = float(d.get("y", 0.0))
+            cz_ = float(d.get("z", 0.0))
+            if cx_ > 0 and cy_ > 0 and cz_ > 0:
+                cutter = (
+                    cq.Workplane("XY")
+                    .box(cx_, cy_, cz_ * 2, centered=(True, True, False))
+                    .translate((p.x, p.y, p.z - cz_))
+                )
+                solid = solid.cut(cutter)
+
+    # Holes last, so they cut through anything added above.
+    for (hx, hy, hz, dia, depth) in _hole_positions(spec):
+        cutter = (
+            cq.Workplane("XY")
+            .circle(dia / 2)
+            .extrude(depth + 0.2)
+            .translate((hx - sx / 2, hy - sy / 2, min(hz, 0.0) - 0.1))
+        )
+        solid = solid.cut(cutter)
+
+    # The bbox is the contract. Features positioned near a face (a dome at the
+    # top of an LED, a header pin standing on a PCB) can otherwise push the solid
+    # past bbox_mm, which would make the scale guarantee false. Intersecting with
+    # the spec box makes the bound exact by construction, whatever the spec says.
+    envelope = cq.Workplane("XY").box(sx, sy, sz, centered=(True, True, False))
+    return solid.intersect(envelope)
+
+
+def fallback_code(spec: PartSpec) -> str:
+    """The same geometry expressed as CadQuery source.
+
+    Used when the LLM path fails so the exported STEP/STL/GLB still carries the
+    exact spec dimensions, and so tests can exercise the deterministic builder
+    through the identical sandbox as LLM code.
+    """
+    sx, sy, sz = spec.bbox_mm.x, spec.bbox_mm.y, spec.bbox_mm.z
+    lines: list[str] = [
+        '"""Deterministic fallback geometry generated by CADForge from a PartSpec."""',
+        "import cadquery as cq",
+        "",
+        "# --- named parameters (mm) -------------------------------------------",
+        f"LENGTH_MM = {sx!r}",
+        f"WIDTH_MM = {sy!r}",
+        f"HEIGHT_MM = {sz!r}",
+    ]
+    for f in spec.features:
+        const = _const_name(f.name)
+        for k, v in f.dims_mm.items():
+            lines.append(f"{const}_{k.upper()}_MM = {float(v)!r}")
+        if f.type == "hole":
+            lines.append(f"{const}_X_MM = {f.position_mm.x!r}")
+            lines.append(f"{const}_Y_MM = {f.position_mm.y!r}")
+    lines += [
+        "",
+        "",
+        "def build() -> cq.Workplane:",
+        "    solid = cq.Workplane('XY').box(",
+        "        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)",
+        "    )",
+    ]
+    for f in spec.features:
+        if f.type == "hole":
+            d = f.dims_mm.get("diameter")
+            if d is None or float(d) <= 0:
+                continue
+            const = _const_name(f.name)
+            depth = float(f.dims_mm.get("depth", sz) or sz)
+            lines += [
+                f"    solid = solid.cut(",
+                f"        cq.Workplane('XY').circle({const}_DIAMETER_MM / 2.0)",
+                f"        .extrude({depth!r} + 0.2)",
+                f"        .translate(({const}_X_MM - LENGTH_MM / 2.0, "
+                f"{const}_Y_MM - WIDTH_MM / 2.0, -0.1))",
+                "    )",
+            ]
+        elif f.type == "cylinder":
+            dia = f.dims_mm.get("diameter")
+            h = f.dims_mm.get("height")
+            if dia and h and float(dia) > 0 and float(h) > 0:
+                const = _const_name(f.name)
+                lines += [
+                    f"    solid = solid.union(",
+                    f"        cq.Workplane('XY', origin=({f.position_mm.x!r} - LENGTH_MM / 2.0, "
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, HEIGHT_MM))",
+                    f"        .circle({const}_DIAMETER_MM / 2.0)",
+                    f"        .extrude({const}_HEIGHT_MM)",
+                    "    )",
+                ]
+        elif f.type == "pin":
+            dia = f.dims_mm.get("diameter")
+            length = f.dims_mm.get("length")
+            if dia and length and float(dia) > 0 and float(length) > 0:
+                const = _const_name(f.name)
+                lines += [
+                    f"    solid = solid.union(",
+                    f"        cq.Workplane('XY', origin=({f.position_mm.x!r} - LENGTH_MM / 2.0, "
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, HEIGHT_MM))",
+                    f"        .circle({const}_DIAMETER_MM / 2.0)",
+                    f"        .extrude({const}_LENGTH_MM)",
+                    "    )",
+                ]
+    lines += [
+        "    # The bbox is the contract: clamp to it so the model is exactly spec-sized.",
+        "    envelope = cq.Workplane('XY').box(",
+        "        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)",
+        "    )",
+        "    return solid.intersect(envelope)",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _const_name(name: str) -> str:
+    out = "".join(ch if ch.isalnum() else "_" for ch in name).upper()
+    return out or "FEATURE"

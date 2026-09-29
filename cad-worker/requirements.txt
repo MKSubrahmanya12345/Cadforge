@@ -1,0 +1,17 @@
+# CADForge cad-worker
+# Python 3.11 required. See SETUP.md section 4 for conda vs pip and the
+# Apple-Silicon / Windows OpenCascade wheel pitfalls.
+#
+#   conda create -n cadforge python=3.11 -y && conda activate cadforge
+#   pip install -r requirements.txt
+#   python -m pytest tests -q
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+cadquery==2.4.0
+trimesh==4.5.3
+numpy==2.1.3
+manifold3d==2.5.1
+httpx==0.28.1
+pytest==8.3.4

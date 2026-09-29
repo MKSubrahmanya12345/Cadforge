@@ -1,0 +1,87 @@
+services:
+  # ---------------------------------------------------------------------------
+  # The API server. This is also where /mcp lives, so MCP needs nothing beyond
+  # this one service: same origin, same auth, same deploy.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: cadforge
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    # Render injects PORT; the image defaults to 4000 so a bare `docker run`
+    # still lines up.
+    envVars:
+      # Required. The process refuses to boot without it rather than starting
+      # and failing every request. Use Atlas, and allowlist Render's egress IPs
+      # on the Atlas network access list.
+      - key: MONGODB_URI
+        sync: false
+
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-5
+      - key: TAVILY_API_KEY
+        sync: false
+
+      # Do NOT set MCP_AUTH_DISABLED. With NODE_ENV=production the process
+      # refuses to start if it is true, which is the point: the flag would serve
+      # /mcp with no bearer token at all.
+      - key: MCP_API_KEY
+        generateValue: true
+
+      # The image serves the built client from this same origin, so there is
+      # nothing to allow. Set this to the deployed host
+      # (https://cadforge.onrender.com) if you would rather be explicit.
+      - key: CLIENT_ORIGIN
+        value: https://cadforge.onrender.com
+
+      # The CadQuery worker's public URL. After the first deploy, Render gives
+      # the worker a name like https://cadforge-worker.onrender.com — set this
+      # to that and redeploy the API, or /files will proxy to nowhere.
+      - key: CAD_WORKER_URL
+        value: https://cadforge-worker.onrender.com
+
+      # The image serves the built client from the same origin, so this is the
+      # service's own URL. Set it to the deployed host after the first deploy.
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: STORAGE_DIR
+        value: ./storage
+      - key: RATE_LIMIT_MAX
+        value: 120
+      - key: MAX_PARTS_PER_PROJECT
+        value: 12
+
+  # ---------------------------------------------------------------------------
+  # The CadQuery worker. Separate service because it needs Python 3.11 and
+  # CadQuery, which is not the same image as the TypeScript server.
+  #
+  # No shared disk is needed: the worker writes the artifacts, and the API
+  # proxies its /files mount through this service (see server/src/app.ts,
+  # isWorkerLocal()). Set CAD_WORKER_URL on the API above to this service's URL.
+  #
+  # Delete this block if you run the worker elsewhere (SETUP.md 9.4). The API
+  # needs a worker either way: without one, no project can generate geometry.
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: cadforge-worker
+    runtime: docker
+    dockerfilePath: ./cad-worker/Dockerfile
+    dockerContext: ./cad-worker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      # The API proxies downloads through here, so this directory only has to
+      # survive as long as one Render deploy. Attach a persistent disk at
+      # /app/storage if you want finished models to outlive a restart.
+      - key: CADFORGE_STORAGE_ROOT
+        value: /app/storage
+      - key: CADFORGE_CODE_TIMEOUT_S
+        value: 30
+      - key: CADFORGE_FREECAD_REQUIRED
+        value: "false"

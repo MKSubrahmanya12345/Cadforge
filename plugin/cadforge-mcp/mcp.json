@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "cadforge": {
+      "type": "streamable-http",
+      "url": "https://cadforge.onrender.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CADFORGE_MCP_API_KEY}"
+      }
+    }
+  }
+}

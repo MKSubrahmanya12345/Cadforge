@@ -1,0 +1,31 @@
+{
+  "name": "cadforge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LLM-powered engineering 3D model generator with real-scale guarantees",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client,worker -c cyan,magenta,yellow \"bun run --cwd server dev\" \"bun run --cwd client dev\" \"bun run --cwd cad-worker dev\"",
+    "dev:no-worker": "concurrently -k -n server,client -c cyan,magenta \"bun run --cwd server dev\" \"bun run --cwd client dev\"",
+    "seed": "bun run --cwd server seed",
+    "build": "bun run --cwd shared build && bun run --cwd server build && bun run --cwd client build",
+    "typecheck": "tsc -p shared/tsconfig.json --noEmit && tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
+    "test": "bun test shared/src server/src",
+    "test:worker": "python -m pytest cad-worker/tests -q",
+    "clean": "rimraf node_modules server/node_modules client/node_modules shared/node_modules"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "concurrently": "^9.1.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
+}

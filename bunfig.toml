@@ -1,0 +1,5 @@
+# Root test config: the server validates its environment at import time (fail
+# fast, which is right for `bun run dev`), so tests get throwaway values
+# preloaded before any test file is imported. Real values always come from .env.
+[test]
+preload = ["./server/src/__tests__/setupEnv.ts"]

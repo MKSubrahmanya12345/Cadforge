@@ -1,0 +1,209 @@
+import { CodegenResponseSchema, assertValidSpec, type PartSpec } from '@cadforge/shared';
+import { env } from '../env.js';
+import { CODEGEN_SYSTEM, codegenUserPrompt } from '../prompts/codegen.js';
+import { workerFallback, workerGenerate, WorkerError } from '../worker.js';
+import type { GeneratedPart, PipelineContext } from './types.js';
+
+/**
+ * GENERATE + VALIDATE for one instance.
+ *
+ * Loop: LLM writes code -> worker builds, measures, and validates -> if the
+ * worker reports a mismatch we feed the structured diff back to the LLM and
+ * retry (up to VALIDATE_MAX_RETRIES). If it still fails, fall back to the
+ * deterministic primitive builder so a correctly-scaled model ALWAYS exists.
+ */
+export async function generatePart(
+  ctx: PipelineContext,
+  instanceName: string,
+  spec: PartSpec,
+): Promise<GeneratedPart> {
+  const validated = assertValidSpec(spec);
+  let correctionNotes = '';
+  const allDiffs: string[] = [];
+  const maxAttempts = env.VALIDATE_MAX_RETRIES + 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    ctx.progress(
+      Math.round(((attempt - 1) / maxAttempts) * 100),
+      'generate',
+    );
+    ctx.log('info', `generating ${instanceName} (attempt ${attempt}/${maxAttempts})`);
+
+    let code: string;
+    try {
+      const response = await ctx.llm.json(
+        {
+          system: CODEGEN_SYSTEM,
+          messages: [
+            { role: 'user', content: codegenUserPrompt(validated, correctionNotes) },
+          ],
+          maxTokens: 6000,
+        },
+        (raw) => CodegenResponseSchema.parse(raw),
+        env.LLM_MAX_RETRIES,
+      );
+      code = response.code;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      ctx.log('error', `codegen failed for ${instanceName}: ${message}`);
+      allDiffs.push(`codegen failed: ${message}`);
+      break;
+    }
+
+    let result;
+    try {
+      result = await workerGenerate(instanceName, validated, code);
+    } catch (err) {
+      if (err instanceof WorkerError) {
+        ctx.log('error', `worker error for ${instanceName}: ${err.message}`);
+        allDiffs.push(`worker error: ${err.message}`);
+        // A worker error is not a code-quality problem; stop retrying.
+        break;
+      }
+      throw err;
+    }
+
+    if (result.ok && result.valid) {
+      ctx.log('success', `${instanceName} validated on attempt ${attempt}`);
+      if (result.bbox) {
+        ctx.log(
+          'info',
+          `  bbox ${result.bbox.actual.x}×${result.bbox.actual.y}×${result.bbox.actual.z} mm ` +
+            `vs spec ${result.bbox.expected.x}×${result.bbox.expected.y}×${result.bbox.expected.z} mm`,
+        );
+      }
+      const matched = result.features.filter((f) => f.matched).length;
+      ctx.log('info', `  ${matched}/${result.features.length} spec features present`);
+      return { instanceName, partId: validated.id, spec: validated, code, usedFallback: false, attempts: attempt, diff: allDiffs };
+    }
+
+    const diffText = result.error ?? 'unknown validation failure';
+    allDiffs.push(diffText);
+    for (const line of diffText.split('; ')) {
+      ctx.log('warn', `  ${instanceName}: ${line}`);
+    }
+    correctionNotes = correctionNotes
+      ? `${correctionNotes}\n${diffText}`
+      : `The validator measured the previous attempt and found these problems:\n${diffText}\n\nFix exactly these. Do not change the spec.`;
+  }
+
+  // ---- deterministic fallback ----
+  ctx.log('warn', `${instanceName}: falling back to the deterministic builder (fallback: true)`);
+  let fallbackResult;
+  try {
+    fallbackResult = await workerFallback(instanceName, validated);
+  } catch (err) {
+    throw new Error(
+      `${instanceName}: LLM generation failed AND the deterministic fallback failed (${
+        err instanceof Error ? err.message : String(err)
+      })`,
+    );
+  }
+
+  if (!fallbackResult.ok || !fallbackResult.valid) {
+    throw new Error(
+      `${instanceName}: deterministic fallback could not produce a spec-conformant model (${
+        fallbackResult.error ?? 'unknown error'
+      })`,
+    );
+  }
+
+  const code = deterministicCodeFor(validated);
+  ctx.log('success', `${instanceName} built from the deterministic fallback and validated`);
+  return {
+    instanceName,
+    partId: validated.id,
+    spec: validated,
+    code,
+    usedFallback: true,
+    attempts: maxAttempts,
+    diff: allDiffs,
+  };
+}
+
+/**
+ * The deterministic primitive builder as CadQuery source.
+ *
+ * Kept in sync with cad-worker/app/builder.py:fallback_code. The worker runs
+ * the authoritative version during fallback; this copy is what the server sends
+ * to the export stage so the exported compound is built from the same
+ * parameterisation.
+ */
+export function deterministicCodeFor(spec: PartSpec): string {
+  const { x: sx, y: sy, z: sz } = spec.bbox_mm;
+  const lines: string[] = [
+    '"""Deterministic CADForge geometry generated from a validated PartSpec."""',
+    'import cadquery as cq',
+    '',
+    '# --- named parameters (mm) ---------------------------------------------',
+    `LENGTH_MM = ${sx}`,
+    `WIDTH_MM = ${sy}`,
+    `HEIGHT_MM = ${sz}`,
+  ];
+  const constOf = (name: string): string => {
+    const c = name.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    return c.length > 0 ? c : 'FEATURE';
+  };
+
+  for (const f of spec.features) {
+    const c = constOf(f.name);
+    for (const [k, v] of Object.entries(f.dims_mm)) {
+      lines.push(`${c}_${k.toUpperCase()}_MM = ${v}`);
+    }
+    if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin') {
+      lines.push(`${c}_X_MM = ${f.position_mm.x}`);
+      lines.push(`${c}_Y_MM = ${f.position_mm.y}`);
+    }
+  }
+
+  lines.push('', '', 'def build() -> cq.Workplane:');
+  lines.push('    solid = cq.Workplane("XY").box(');
+  lines.push('        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)');
+  lines.push('    )');
+
+  for (const f of spec.features) {
+    const c = constOf(f.name);
+    if (f.type === 'hole') {
+      const d = f.dims_mm['diameter'];
+      if (d === undefined || d <= 0) continue;
+      const depth = f.dims_mm['depth'] ?? sz;
+      lines.push('    solid = solid.cut(');
+      lines.push(`        cq.Workplane("XY").circle(${c}_DIAMETER_MM / 2.0)`);
+      lines.push(`        .extrude(${depth} + 0.2)`);
+      lines.push(
+        `        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, -0.1))`,
+      );
+      lines.push('    )');
+    } else if (f.type === 'cylinder') {
+      const d = f.dims_mm['diameter'];
+      const h = f.dims_mm['height'];
+      if (!d || !h || d <= 0 || h <= 0) continue;
+      lines.push('    solid = solid.union(');
+      lines.push(
+        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, HEIGHT_MM))`,
+      );
+      lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
+      lines.push(`        .extrude(${c}_HEIGHT_MM)`);
+      lines.push('    )');
+    } else if (f.type === 'pin') {
+      const d = f.dims_mm['diameter'];
+      const l = f.dims_mm['length'];
+      if (!d || !l || d <= 0 || l <= 0) continue;
+      lines.push('    solid = solid.union(');
+      lines.push(
+        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, HEIGHT_MM))`,
+      );
+      lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
+      lines.push(`        .extrude(${c}_LENGTH_MM)`);
+      lines.push('    )');
+    }
+  }
+
+  lines.push('    # The bbox is the contract: clamp to it so the model is exactly spec-sized,');
+  lines.push('    # even when a feature (a dome, a header pin) sits on a face.');
+  lines.push('    envelope = cq.Workplane("XY").box(');
+  lines.push('        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)');
+  lines.push('    )');
+  lines.push('    return solid.intersect(envelope)');
+  return `${lines.join('\n')}\n`;
+}

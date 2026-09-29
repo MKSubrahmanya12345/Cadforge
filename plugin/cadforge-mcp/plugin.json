@@ -1,0 +1,25 @@
+{
+  "name": "cadforge-mcp",
+  "version": "1.0.0",
+  "description": "Generate true-scale parametric CAD (STEP/GLB/STL) from a natural-language description, with every dimension traced to a datasheet.",
+  "author": { "name": "CADForge" },
+  "mcpServers": {
+    "cadforge": {
+      "type": "streamable-http",
+      "url": "https://cadforge.onrender.com/mcp"
+    }
+  },
+  "tools": [
+    "create_cad_project",
+    "get_cad_project",
+    "wait_for_cad_project",
+    "list_cad_projects",
+    "get_cad_artifacts",
+    "list_parts",
+    "get_part",
+    "verify_part",
+    "delete_part",
+    "delete_cad_project",
+    "cadforge_health"
+  ]
+}
