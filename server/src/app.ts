@@ -39,9 +39,6 @@ export function createApp(): Express {
     }),
   );
 
-  // Bodies here are small (a prompt and a spec), so a tight cap is safe.
-  app.use(express.json({ limit: '1mb' }));
-
   app.use((req, res, next) => {
     const started = Date.now();
     res.on('finish', () => {
@@ -51,14 +48,17 @@ export function createApp(): Express {
     next();
   });
 
+  // MCP adapts the raw Node request stream to Fetch Request. Mount it before
+  // express.json(), which consumes that stream and leaves MCP with an empty body.
+  app.use('/', mcpRouter);
+
+  // Bodies here are small (a prompt and a spec), so a tight cap is safe.
+  app.use(express.json({ limit: '1mb' }));
+
   app.use('/api', rateLimit({ prefix: 'api:' }));
   app.use('/api/health', healthRouter);
   app.use('/api/projects', projectsRouter);
   app.use('/api/parts', partsRouter);
-
-  // MCP lives at the root /mcp, not under /api, so the client config URL is
-  // https://<host>/mcp regardless of how the API is mounted.
-  app.use('/', mcpRouter);
 
   // Generated artifacts, mounted at the API root so the client can load GLB and
   // STEP directly from /files/<projectId>/assembly.glb.
