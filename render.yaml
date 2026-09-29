@@ -32,11 +32,10 @@ services:
       - key: CLIENT_ORIGIN
         value: https://cadforge.onrender.com
 
-      # The CadQuery worker's public URL. After the first deploy, Render gives
-      # the worker a name like https://cadforge-worker.onrender.com — set this
-      # to that and redeploy the API, or /files will proxy to nowhere.
+      # The CadQuery worker's public URL. The live worker service is
+      # https://cadforge-1.onrender.com; the API uses this for builds and files.
       - key: CAD_WORKER_URL
-        value: https://cadforge-worker.onrender.com
+        value: https://cadforge-1.onrender.com
 
       # The image serves the built client from the same origin, so this is the
       # service's own URL. Set it to the deployed host after the first deploy.
