@@ -39,6 +39,8 @@ export const FeatureSchema = z.object({
   position_mm: Vec3Schema,
   dims_mm: FeatureDimsSchema,
   note: z.string().max(400).optional(),
+  axis: z.enum(['x', 'y', 'z']).optional(),
+  operation: z.enum(['add', 'cut']).optional(),
 });
 
 export type Feature = z.infer<typeof FeatureSchema>;
