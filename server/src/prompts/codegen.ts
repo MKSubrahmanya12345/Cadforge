@@ -7,9 +7,10 @@ HARD RULES (violating any of these fails the build):
 2. You may NOT call open, eval, exec, compile, input, __import__, or any filesystem/network API. The code runs in a sandbox with none of them available.
 3. Define exactly one function: build() -> cq.Workplane. Call it nothing; the harness calls it.
 4. All units are MILLIMETRES. Coordinate system: X right, Y forward, Z up, origin at the LOWER-LEFT CORNER of the part (0,0,0 is the bottom-front-left corner of the bounding box).
-5. Your solid's bounding box MUST match spec.bbox_mm to within 0.3 mm or 2%, whichever is larger. This is the whole point: real scale. A 5mm LED must be 5mm wide next to a 53.34mm-wide board.
+5. Your solid's COMPLETE physical bounding box MUST match spec.bbox_mm to within 0.3 mm or 2%, whichever is larger. If base_thickness_mm is present, it is ONLY the thickness of the primary/base body; components are expected to protrude above it. Never clip those components to the base thickness.
 6. Put every dimension in a named UPPERCASE constant at the top of the file (e.g. BOARD_LENGTH_MM = 68.58) and build geometry from those constants. Never inline a magic number inside build().
-7. Origin convention matters for position_mm: since the origin is the lower-left corner, a feature at spec position (px, py) corresponds to CadQuery workplane coordinates (px - LENGTH/2, py - WIDTH/2) when you centre the box on X/Y and sit it on Z=0.
+7. If base_thickness_mm is present, start the primary body at that thickness, not at bbox.z. Add every listed component on top of or through that base so the final measured envelope reaches bbox.z naturally.
+8. Origin convention matters for position_mm: since the origin is the lower-left corner, a feature at spec position (px, py) corresponds to CadQuery workplane coordinates (px - LENGTH/2, py - WIDTH/2) when you centre the box on X/Y and sit it on Z=0.
 
 A correct minimal example for a plain plate:
 import cadquery as cq
@@ -56,8 +57,9 @@ export function codegenUserPrompt(spec: PartSpec, attemptNotes: string): string 
     : '  (none — the part is a simple solid)';
 
   return `PART: ${spec.name} (${spec.category})
-Overall bounding box: x=${spec.bbox_mm.x} x y=${spec.bbox_mm.y} x z=${spec.bbox_mm.z} mm
-${spec.pitch_mm ? `Pin pitch: ${spec.pitch_mm} mm\n` : ''}${spec.material ? `Material: ${spec.material}\n` : ''}Features that MUST be present in the solid:
+Overall physical bounding box: x=${spec.bbox_mm.x} x y=${spec.bbox_mm.y} x z=${spec.bbox_mm.z} mm
+${spec.base_thickness_mm ? `Base/body thickness: ${spec.base_thickness_mm} mm (the remaining Z envelope is occupied by components)
+` : ''}${spec.pitch_mm ? `Pin pitch: ${spec.pitch_mm} mm\n` : ''}${spec.material ? `Material: ${spec.material}\n` : ''}Features that MUST be present in the solid:
 ${features}
 
 ${attemptNotes ? `CORRECTIONS REQUIRED (the validator measured the previous attempt and found these problems):\n${attemptNotes}\n\n` : ''}Write the CadQuery code. The bounding box must match exactly. Every feature in the list must be a real hole, boss, or pad in the solid — a box of the right size with no features is a failed build.`;
