@@ -106,6 +106,20 @@ def build_fallback(spec: PartSpec) -> Any:
                         ):
                             pad = cq.Workplane("XY").box(bx, by, lead_height, centered=(True, True, False))
                             solid = solid.union(pad.translate((p.x - sx / 2 + x, p.y - sy / 2 + y, p.z)))
+            elif pattern == "grid":
+                dia = float(d.get("diameter", 0.0))
+                length = float(d.get("length", 0.0))
+                rows = max(1, int(d.get("rows", 1) or 1))
+                columns = max(1, int(d.get("columns", 1) or 1))
+                pitch_x = float(d.get("pitch_x", d.get("pitch", 0.0)) or 0.0)
+                pitch_y = float(d.get("pitch_y", d.get("pitch", 0.0)) or 0.0)
+                if dia > 0 and length > 0:
+                    for row in range(rows):
+                        for col in range(columns):
+                            ox = (col - (columns - 1) / 2) * pitch_x
+                            oy = (row - (rows - 1) / 2) * pitch_y
+                            pin = cq.Workplane("XY").circle(dia / 2).extrude(length)
+                            solid = solid.union(pin.translate((p.x - sx / 2 + ox, p.y - sy / 2 + oy, p.z)))
             else:
                 dia = float(d.get("diameter", 0.0))
                 length = float(d.get("length", 0.0))
