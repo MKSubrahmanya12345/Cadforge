@@ -54,9 +54,9 @@ const uno: PartSpec = PartSpecSchema.parse({
   name: 'Arduino Uno R3',
   category: 'board',
   aliases: ['uno', 'arduino uno', 'uno r3', 'arduino uno r3', 'arduino'],
-  // The PCB itself, as specified. Taller components (USB-B, barrel jack, MCU)
-  // are features, not the bounding box, so a part is measured by the board it
-  // is, and the LED standing on it is the tallest thing in the assembly.
+  // bbox_mm is the complete physical envelope of the board assembly. The PCB
+  // itself remains 1.6 mm thick via base_thickness_mm; mounted hardware occupies
+  // the remaining Z envelope.
   bbox_mm: { x: 68.58, y: 53.34, z: 12.6 },
   base_thickness_mm: 1.6,
   pitch_mm: UNO_DIGITAL_PITCH,
@@ -128,8 +128,8 @@ const uno: PartSpec = PartSpecSchema.parse({
   ],
   notes:
     'PCB outline, mounting holes, and header pitch are from the official mechanical drawing (confidence 0.9). ' +
-    'The USB-B block (12 x 16 x 11 mm), the barrel jack body, and the MCU package outline are approximations ' +
-    'flagged for verification against a real board or a better drawing.',
+    'The component envelopes are canonical visualization geometry derived from the documented Uno topology; ' +
+    'individual connector/package dimensions remain approximate until a manufacturer CAD asset is imported.',
 });
 
 // -----------------------------------------------------------------------------
