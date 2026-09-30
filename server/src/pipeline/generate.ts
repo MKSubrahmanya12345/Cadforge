@@ -210,13 +210,14 @@ export function deterministicCodeFor(spec: PartSpec): string {
       const d = f.dims_mm['diameter'];
       const h = f.dims_mm['height'];
       if (!d || !h || d <= 0 || h <= 0) continue;
-      lines.push('    solid = solid.union(');
-      lines.push(
-        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`,
-      );
-      lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
-      lines.push(`        .extrude(${c}_HEIGHT_MM)`);
-      lines.push('    )');
+      const axis = f.axis ?? 'z';
+      const operation = f.operation ?? 'add';
+      lines.push(`    ${c}_AXIS = ${JSON.stringify(axis)}`);
+      lines.push(`    ${c}_OPERATION = ${JSON.stringify(operation)}`);
+      lines.push(`    cyl = cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM)).circle(${c}_DIAMETER_MM / 2.0).extrude(${c}_HEIGHT_MM)`);
+      lines.push(`    if ${c}_AXIS == "x": cyl = cyl.rotate((0, 0, 0), (0, 1, 0), 90)`);
+      lines.push(`    elif ${c}_AXIS == "y": cyl = cyl.rotate((0, 0, 0), (1, 0, 0), -90)`);
+      lines.push(`    solid = solid.cut(cyl) if ${c}_OPERATION == "cut" else solid.union(cyl)`);
     } else if (f.type === 'pin') {
       const d = f.dims_mm['diameter'];
       const l = f.dims_mm['length'];
