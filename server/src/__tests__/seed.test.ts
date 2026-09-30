@@ -142,9 +142,9 @@ describe('Arduino Uno R3 seed dimensions', () => {
   });
 
   test('the USB-B block is flagged as approximate with reduced confidence', () => {
-    const usb = uno.features.find((f) => f.name === 'usb_b_block');
+    const usb = uno.features.find((f) => f.name === 'usb_b_shell');
     expect(usb).toBeDefined();
-    expect(usb!.note?.toLowerCase()).toContain('approximate');
+    expect(usb!.note?.toLowerCase()).toContain('envelope');
     expect(usb!.dims_mm['x']).toBe(12);
     expect(usb!.dims_mm['y']).toBe(16);
     expect(usb!.dims_mm['z']).toBe(11);
@@ -192,11 +192,11 @@ describe('5mm LED seed dimensions', () => {
     expect(led.bbox_mm.z).toBeGreaterThan(uno.bbox_mm.z);
   });
 
-  test('the Uno bounding box is the PCB, not the tallest component', () => {
+  test('the Uno bounding box is the complete physical envelope and base thickness is separate', () => {
     const uno = SEED_PARTS.find((p) => p.id === 'arduino-uno-r3') as PartSpec;
-    expect(uno.bbox_mm.z).toBe(1.6);
-    // Taller parts are declared as features, so the board measures the board.
-    const tall = uno.features.filter((f) => (f.dims_mm['z'] ?? 0) > uno.bbox_mm.z);
+    expect(uno.bbox_mm.z).toBe(14.0);
+    expect(uno.base_thickness_mm).toBe(1.6);
+    const tall = uno.features.filter((f) => (f.dims_mm['z'] ?? 0) > uno.base_thickness_mm!);
     expect(tall.length).toBeGreaterThan(0);
   });
 });
