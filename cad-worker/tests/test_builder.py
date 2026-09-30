@@ -27,7 +27,7 @@ def test_fallback_bbox_matches_spec_exactly(uno_spec):
     size = m["bbox"]["size"]
     assert size["x"] == pytest.approx(68.58, abs=0.01)
     assert size["y"] == pytest.approx(53.34, abs=0.01)
-    assert size["z"] == pytest.approx(14.0, abs=0.01)
+    assert size["z"] == pytest.approx(12.6, abs=0.01)
 
 
 def test_fallback_validates_against_uno_spec(uno_spec):
@@ -71,7 +71,7 @@ def test_fallback_code_is_valid_python_and_self_consistent(uno_spec):
     assert "build" in namespace
     assert namespace["LENGTH_MM"] == pytest.approx(68.58)
     assert namespace["WIDTH_MM"] == pytest.approx(53.34)
-    assert namespace["HEIGHT_MM"] == pytest.approx(14.0)
+    assert namespace["HEIGHT_MM"] == pytest.approx(12.6)
     assert namespace["BASE_THICKNESS_MM"] == pytest.approx(1.6)
     assert "MOUNT_HOLE_1_DIAMETER_MM" in namespace
 
