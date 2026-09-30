@@ -129,6 +129,10 @@ def build_fallback(spec: PartSpec) -> Any:
                     for i in range(count):
                         ox = (i - (count - 1) / 2) * pitch if count > 1 else 0.0
                         pin = cq.Workplane("XY").circle(dia / 2).extrude(length)
+                        if axis == "x":
+                            pin = pin.rotate((0, 0, 0), (0, 1, 0), 90)
+                        elif axis == "y":
+                            pin = pin.rotate((0, 0, 0), (1, 0, 0), -90)
                         solid = solid.union(pin.translate((p.x - sx / 2 + ox, p.y - sy / 2, p.z)))
         elif f.type in ("box", "rounded_box", "pad"):
             bx = float(d.get("x", 0.0))
