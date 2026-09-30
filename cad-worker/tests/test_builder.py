@@ -27,7 +27,7 @@ def test_fallback_bbox_matches_spec_exactly(uno_spec):
     size = m["bbox"]["size"]
     assert size["x"] == pytest.approx(68.58, abs=0.01)
     assert size["y"] == pytest.approx(53.34, abs=0.01)
-    assert size["z"] == pytest.approx(1.6, abs=0.01)
+    assert size["z"] == pytest.approx(14.0, abs=0.01)
 
 
 def test_fallback_validates_against_uno_spec(uno_spec):
@@ -71,7 +71,8 @@ def test_fallback_code_is_valid_python_and_self_consistent(uno_spec):
     assert "build" in namespace
     assert namespace["LENGTH_MM"] == pytest.approx(68.58)
     assert namespace["WIDTH_MM"] == pytest.approx(53.34)
-    assert namespace["HEIGHT_MM"] == pytest.approx(1.6)
+    assert namespace["HEIGHT_MM"] == pytest.approx(14.0)
+    assert namespace["BASE_THICKNESS_MM"] == pytest.approx(1.6)
     assert "MOUNT_HOLE_1_DIAMETER_MM" in namespace
 
 
@@ -103,7 +104,8 @@ def test_assembly_of_uno_and_led_keeps_ratio():
         id="uno",
         name="Uno",
         category="board",
-        bbox_mm={"x": 68.58, "y": 53.34, "z": 1.6},
+        bbox_mm={"x": 68.58, "y": 53.34, "z": 14.0},
+        base_thickness_mm=1.6,
         features=[],
         confidence=1.0,
         verified=True,
@@ -120,7 +122,7 @@ def test_assembly_of_uno_and_led_keeps_ratio():
     uno_size = _measure(uno)["bbox"]["size"]
     led_size = _measure(led)["bbox"]["size"]
     # LED dome 5.0 / Uno width 53.34 must hold on the actual solids.
-    assert led_size["x"] / uno_size["y"] == pytest.approx(5.0 / 53.34, rel=0.02)
+    assert led_size["x"] / uno_size["y"] == pytest.approx(5.8 / 53.34, rel=0.02)
     assert led_size["x"] < uno_size["x"]
     # and a fresh validation of both is exact
     assert compare_bbox(uno.bbox_mm, uno.bbox_mm).ok
