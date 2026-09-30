@@ -47,6 +47,8 @@ class Feature(BaseModel):
     position_mm: Vec3
     dims_mm: dict[str, float] = Field(default_factory=dict)
     note: str | None = None
+    axis: Literal['x', 'y', 'z'] | None = None
+    operation: Literal['add', 'cut'] | None = None
 
 
 class ProfilePoint(BaseModel):
