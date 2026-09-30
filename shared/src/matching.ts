@@ -200,7 +200,19 @@ export function validateSpecGeometry(spec: PartSpec): SpecIssue[] {
       }
     }
     if (f.type === 'pin') {
-      if (f.pattern === 'perimeter') {
+      if (f.pattern === 'grid') {
+        for (const k of ['rows', 'columns', 'pitch_x', 'pitch_y'] as const) {
+          const v = f.dims_mm[k];
+          if (v === undefined || v <= 0) {
+            issues.push({ severity: 'error', path: `${p}.dims_mm.${k}`, message: `grid pin needs positive ${k}` });
+          }
+        }
+        const d = f.dims_mm['diameter'];
+        const len = f.dims_mm['length'];
+        if (d === undefined || d <= 0 || len === undefined || len <= 0) {
+          issues.push({ severity: 'error', path: `${p}.dims_mm`, message: 'grid pin needs positive diameter and length' });
+        }
+      } else if (f.pattern === 'perimeter') {
         for (const k of ['body_x', 'body_y', 'lead_length', 'lead_width', 'lead_height', 'count_per_side', 'pitch'] as const) {
           const v = f.dims_mm[k];
           if (v === undefined || v <= 0) {
