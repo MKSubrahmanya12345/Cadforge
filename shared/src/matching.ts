@@ -200,13 +200,22 @@ export function validateSpecGeometry(spec: PartSpec): SpecIssue[] {
       }
     }
     if (f.type === 'pin') {
-      const d = f.dims_mm['diameter'];
-      if (d === undefined || d <= 0) {
-        issues.push({ severity: 'error', path: `${p}.dims_mm.diameter`, message: 'pin needs diameter' });
-      }
-      const len = f.dims_mm['length'];
-      if (len === undefined || len <= 0) {
-        issues.push({ severity: 'error', path: `${p}.dims_mm.length`, message: 'pin needs length' });
+      if (f.pattern === 'perimeter') {
+        for (const k of ['body_x', 'body_y', 'lead_length', 'lead_width', 'lead_height', 'count_per_side', 'pitch'] as const) {
+          const v = f.dims_mm[k];
+          if (v === undefined || v <= 0) {
+            issues.push({ severity: 'error', path: `${p}.dims_mm.${k}`, message: `perimeter pin needs positive ${k}` });
+          }
+        }
+      } else {
+        const d = f.dims_mm['diameter'];
+        if (d === undefined || d <= 0) {
+          issues.push({ severity: 'error', path: `${p}.dims_mm.diameter`, message: 'pin needs diameter' });
+        }
+        const len = f.dims_mm['length'];
+        if (len === undefined || len <= 0) {
+          issues.push({ severity: 'error', path: `${p}.dims_mm.length`, message: 'pin needs length' });
+        }
       }
     }
 
