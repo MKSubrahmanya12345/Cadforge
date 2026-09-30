@@ -141,7 +141,7 @@ describe('Arduino Uno R3 seed dimensions', () => {
     }
   });
 
-  test('the USB-B block is flagged as approximate with reduced confidence', () => {
+  test('the USB-B shell is represented as a physical envelope', () => {
     const usb = uno.features.find((f) => f.name === 'usb_b_shell');
     expect(usb).toBeDefined();
     expect(usb!.note?.toLowerCase()).toContain('envelope');
