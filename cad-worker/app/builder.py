@@ -67,9 +67,10 @@ def build_fallback(spec: PartSpec) -> Any:
             h = float(d.get("height", 0.0))
             if dia > 0 and h > 0:
                 solid = solid.union(
-                    cq.Workplane("XY", origin=(p.x - sx / 2, p.y - sy / 2, sz))
+                    cq.Workplane("XY")
                     .circle(dia / 2)
                     .extrude(h)
+                    .translate((p.x - sx / 2, p.y - sy / 2, p.z))
                 )
         elif f.type == "pin":
             dia = float(d.get("diameter", 0.0))
@@ -80,9 +81,10 @@ def build_fallback(spec: PartSpec) -> Any:
                 for i in range(count):
                     ox = (i - (count - 1) / 2) * pitch if count > 1 else 0.0
                     solid = solid.union(
-                        cq.Workplane("XY", origin=(p.x - sx / 2 + ox, p.y - sy / 2, sz))
+                        cq.Workplane("XY")
                         .circle(dia / 2)
                         .extrude(length)
+                        .translate((p.x - sx / 2 + ox, p.y - sy / 2, p.z))
                     )
         elif f.type == "box":
             bx = float(d.get("x", 0.0))
@@ -90,10 +92,9 @@ def build_fallback(spec: PartSpec) -> Any:
             bz = float(d.get("z", 0.0))
             if bx > 0 and by > 0 and bz > 0:
                 solid = solid.union(
-                    cq.Workplane("XY", origin=(p.x - sx / 2, p.y - sy / 2, sz))
-                    .center(0, 0)
+                    cq.Workplane("XY")
                     .box(bx, by, bz, centered=(True, True, False))
-                    .translate((p.x - sx / 2, p.y - sy / 2, sz))
+                    .translate((p.x - sx / 2, p.y - sy / 2, p.z))
                 )
         elif f.type == "cutout":
             cx_ = float(d.get("x", 0.0))
@@ -103,7 +104,7 @@ def build_fallback(spec: PartSpec) -> Any:
                 cutter = (
                     cq.Workplane("XY")
                     .box(cx_, cy_, cz_ * 2, centered=(True, True, False))
-                    .translate((p.x, p.y, p.z - cz_))
+                    .translate((p.x - sx / 2, p.y - sy / 2, p.z - cz_))
                 )
                 solid = solid.cut(cutter)
 
@@ -117,12 +118,9 @@ def build_fallback(spec: PartSpec) -> Any:
         )
         solid = solid.cut(cutter)
 
-    # The bbox is the contract. Features positioned near a face (a dome at the
-    # top of an LED, a header pin standing on a PCB) can otherwise push the solid
-    # past bbox_mm, which would make the scale guarantee false. Intersecting with
-    # the spec box makes the bound exact by construction, whatever the spec says.
-    envelope = cq.Workplane("XY").box(sx, sy, sz, centered=(True, True, False))
-    return solid.intersect(envelope)
+    # bbox_mm is the complete physical envelope, including hardware above the base.
+    # Do not clip valid component geometry to PCB thickness.
+    return solid
 
 
 def fallback_code(spec: PartSpec) -> str:
@@ -146,7 +144,7 @@ def fallback_code(spec: PartSpec) -> str:
         const = _const_name(f.name)
         for k, v in f.dims_mm.items():
             lines.append(f"{const}_{k.upper()}_MM = {float(v)!r}")
-        if f.type == "hole":
+        if f.type in ("hole", "box", "cutout"):
             lines.append(f"{const}_X_MM = {f.position_mm.x!r}")
             lines.append(f"{const}_Y_MM = {f.position_mm.y!r}")
     lines += [
@@ -192,18 +190,40 @@ def fallback_code(spec: PartSpec) -> str:
                 const = _const_name(f.name)
                 lines += [
                     f"    solid = solid.union(",
-                    f"        cq.Workplane('XY', origin=({f.position_mm.x!r} - LENGTH_MM / 2.0, "
-                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, HEIGHT_MM))",
-                    f"        .circle({const}_DIAMETER_MM / 2.0)",
+                    f"        cq.Workplane('XY').circle({const}_DIAMETER_MM / 2.0)",
                     f"        .extrude({const}_LENGTH_MM)",
+                    f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
                     "    )",
                 ]
+        elif f.type == "box":
+            bx = f.dims_mm.get("x")
+            by = f.dims_mm.get("y")
+            bz = f.dims_mm.get("z")
+            if bx and by and bz and float(bx) > 0 and float(by) > 0 and float(bz) > 0:
+                const = _const_name(f.name)
+                lines += [
+                    f"    solid = solid.union(",
+                    f"        cq.Workplane('XY').box({const}_X_MM, {const}_Y_MM, {const}_Z_MM, centered=(True, True, False))",
+                    f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
+                    "    )",
+                ]
+        elif f.type == "cutout":
+            cx = f.dims_mm.get("x")
+            cy = f.dims_mm.get("y")
+            cz = f.dims_mm.get("z")
+            if cx and cy and cz and float(cx) > 0 and float(cy) > 0 and float(cz) > 0:
+                const = _const_name(f.name)
+                lines += [
+                    f"    solid = solid.cut(",
+                    f"        cq.Workplane('XY').box({const}_X_MM, {const}_Y_MM, {const}_Z_MM * 2.0, centered=(True, True, False))",
+                    f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r} - {const}_Z_MM))",
+                    "    )"
+                ]
     lines += [
-        "    # The bbox is the contract: clamp to it so the model is exactly spec-sized.",
-        "    envelope = cq.Workplane('XY').box(",
-        "        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)",
-        "    )",
-        "    return solid.intersect(envelope)",
+        "    return solid",
     ]
     return "\n".join(lines) + "\n"
 
