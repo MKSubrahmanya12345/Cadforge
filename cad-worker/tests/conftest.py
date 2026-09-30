@@ -20,7 +20,7 @@ def uno_spec() -> PartSpec:
         id="arduino-uno-r3",
         name="Arduino Uno R3",
         category="board",
-        bbox_mm={"x": 68.58, "y": 53.34, "z": 14.0},
+        bbox_mm={"x": 68.58, "y": 53.34, "z": 12.6},
         base_thickness_mm=1.6,
         features=[
             Feature(
@@ -39,7 +39,7 @@ def uno_spec() -> PartSpec:
                 type="box",
                 name="usb_shell",
                 position_mm=Vec3(x=6.0, y=23.5, z=1.6),
-                dims_mm={"x": 12.0, "y": 16.0, "z": 12.4},
+                dims_mm={"x": 12.0, "y": 16.0, "z": 11.0},
             ),
         ],
         anchors=[],
