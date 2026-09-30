@@ -42,7 +42,7 @@ class Bbox(BaseModel):
 
 class Feature(BaseModel):
     model_config = StrictModel
-    type: Literal["hole", "cylinder", "box", "pin", "pad", "cutout"]
+    type: Literal["hole", "cylinder", "box", "rounded_box", "pin", "pad", "cutout"]
     name: str
     position_mm: Vec3
     dims_mm: dict[str, float] = Field(default_factory=dict)
