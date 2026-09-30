@@ -58,6 +58,7 @@ const uno: PartSpec = PartSpecSchema.parse({
   // are features, not the bounding box, so a part is measured by the board it
   // is, and the LED standing on it is the tallest thing in the assembly.
   bbox_mm: { x: 68.58, y: 53.34, z: 14.0 },
+  base_thickness_mm: 1.6,
   pitch_mm: UNO_DIGITAL_PITCH,
   material: 'FR-4 PCB',
   color_hex: '#0f9d58',
@@ -88,6 +89,10 @@ const uno: PartSpec = PartSpecSchema.parse({
     { type: 'box', name: 'power_header_body', position_mm: { x: 62.0, y: 50.0, z: 1.6 }, dims_mm: { x: 15.2, y: 2.54, z: 8.5 }, note: 'power/control header housing' },
     { type: 'box', name: 'analog_header_body', position_mm: { x: 33.0, y: 3.8, z: 1.6 }, dims_mm: { x: 15.2, y: 2.54, z: 8.5 }, note: 'A0-A5 analog header housing' },
     { type: 'box', name: 'icsp_header_body', position_mm: { x: 46.0, y: 17.0, z: 1.6 }, dims_mm: { x: 7.62, y: 7.62, z: 8.5 }, note: '2x3 ICSP header housing' },
+    { type: 'pin', name: 'digital_header_pins', position_mm: { x: 26.67, y: 48.26, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 14 }, note: 'D0-D13 header pin row' },
+    { type: 'pin', name: 'power_header_pins', position_mm: { x: 62.23, y: 48.26, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 8 }, note: 'power/control header pins' },
+    { type: 'pin', name: 'analog_header_pins', position_mm: { x: 26.67, y: 5.08, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 6 }, note: 'A0-A5 header pins' },
+    { type: 'pin', name: 'icsp_header_pins', position_mm: { x: 46.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 6 }, note: '2x3 ICSP header pin group' },
 
     // Visible passives / indicators.
     { type: 'cylinder', name: 'power_led', position_mm: { x: 11.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 3.0, height: 4.0 }, note: 'power indicator LED' },
