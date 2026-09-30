@@ -191,15 +191,21 @@ def fallback_code(spec: PartSpec) -> str:
         elif f.type == "pin":
             dia = f.dims_mm.get("diameter")
             length = f.dims_mm.get("length")
+            count = max(1, int(f.dims_mm.get("count", 1) or 1))
+            pitch = float(f.dims_mm.get("pitch", 0.0) or 0.0)
             if dia and length and float(dia) > 0 and float(length) > 0:
                 const = _const_name(f.name)
                 lines += [
-                    f"    solid = solid.union(",
-                    f"        cq.Workplane('XY').circle({const}_DIAMETER_MM / 2.0)",
-                    f"        .extrude({const}_LENGTH_MM)",
-                    f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
+                    f"    {const}_COUNT = {count}",
+                    f"    {const}_PITCH_MM = {pitch!r}",
+                    f"    for i in range({const}_COUNT):",
+                    f"        {const}_OFFSET_X_MM = (i - ({const}_COUNT - 1) / 2.0) * {const}_PITCH_MM",
+                    f"        solid = solid.union(",
+                    f"            cq.Workplane('XY').circle({const}_DIAMETER_MM / 2.0)",
+                    f"            .extrude({const}_LENGTH_MM)",
+                    f"            .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0 + {const}_OFFSET_X_MM, "
                     f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
-                    "    )",
+                    "        )",
                 ]
         elif f.type == "box":
             bx = f.dims_mm.get("x")
