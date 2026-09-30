@@ -114,8 +114,8 @@ def build_fallback(spec: PartSpec) -> Any:
             if cx_ > 0 and cy_ > 0 and cz_ > 0:
                 cutter = (
                     cq.Workplane("XY")
-                    .box(cx_, cy_, cz_ * 2, centered=(True, True, False))
-                    .translate((p.x - sx / 2, p.y - sy / 2, p.z - cz_))
+                    .box(cx_, cy_, cz_, centered=(True, True, False))
+                    .translate((p.x - sx / 2, p.y - sy / 2, p.z))
                 )
                 solid = solid.cut(cutter)
 
@@ -260,9 +260,9 @@ def fallback_code(spec: PartSpec) -> str:
                     f"    {const}_CUT_Y_MM = {float(cy)!r}",
                     f"    {const}_CUT_Z_MM = {float(cz)!r}",
                     f"    solid = solid.cut(",
-                    f"        cq.Workplane('XY').box({const}_CUT_X_MM, {const}_CUT_Y_MM, {const}_CUT_Z_MM * 2.0, centered=(True, True, False))",
+                    f"        cq.Workplane('XY').box({const}_CUT_X_MM, {const}_CUT_Y_MM, {const}_CUT_Z_MM, centered=(True, True, False))",
                     f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
-                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r} - {const}_CUT_Z_MM))",
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
                     "    )"
                 ]
     lines += [
