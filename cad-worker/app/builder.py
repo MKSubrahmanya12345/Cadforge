@@ -96,16 +96,17 @@ def build_fallback(spec: PartSpec) -> Any:
                         .extrude(length)
                         .translate((p.x - sx / 2 + ox, p.y - sy / 2, p.z))
                     )
-        elif f.type == "box":
+        elif f.type in ("box", "rounded_box"):
             bx = float(d.get("x", 0.0))
             by = float(d.get("y", 0.0))
             bz = float(d.get("z", 0.0))
             if bx > 0 and by > 0 and bz > 0:
-                solid = solid.union(
-                    cq.Workplane("XY")
-                    .box(bx, by, bz, centered=(True, True, False))
-                    .translate((p.x - sx / 2, p.y - sy / 2, p.z))
-                )
+                body = cq.Workplane("XY").box(bx, by, bz, centered=(True, True, False))
+                if f.type == "rounded_box":
+                    radius = min(float(d.get("radius", 0.0)), bx / 2, by / 2, bz / 2)
+                    if radius > 0:
+                        body = body.edges().fillet(radius)
+                solid = solid.union(body.translate((p.x - sx / 2, p.y - sy / 2, p.z)))
         elif f.type == "cutout":
             cx_ = float(d.get("x", 0.0))
             cy_ = float(d.get("y", 0.0))
@@ -221,7 +222,7 @@ def fallback_code(spec: PartSpec) -> str:
                     f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
                     "        )",
                 ]
-        elif f.type == "box":
+        elif f.type in ("box", "rounded_box"):
             bx = f.dims_mm.get("x")
             by = f.dims_mm.get("y")
             bz = f.dims_mm.get("z")
@@ -231,12 +232,23 @@ def fallback_code(spec: PartSpec) -> str:
                     f"    {const}_BOX_X_MM = {float(bx)!r}",
                     f"    {const}_BOX_Y_MM = {float(by)!r}",
                     f"    {const}_BOX_Z_MM = {float(bz)!r}",
-                    f"    solid = solid.union(",
-                    f"        cq.Workplane('XY').box({const}_BOX_X_MM, {const}_BOX_Y_MM, {const}_BOX_Z_MM, centered=(True, True, False))",
-                    f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
-                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
-                    "    )",
                 ]
+                if f.type == "rounded_box":
+                    radius = min(float(f.dims_mm.get("radius", 0.0)), float(bx) / 2, float(by) / 2, float(bz) / 2)
+                    lines += [
+                        f"    {const}_RADIUS_MM = {radius!r}",
+                        f"    body = cq.Workplane('XY').box({const}_BOX_X_MM, {const}_BOX_Y_MM, {const}_BOX_Z_MM, centered=(True, True, False))",
+                        f"    if {const}_RADIUS_MM > 0:",
+                        f"        body = body.edges().fillet({const}_RADIUS_MM)",
+                        f"    solid = solid.union(body.translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, {f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r})))",
+                    ]
+                else:
+                    lines += [
+                        f"    solid = solid.union(",
+                        f"        cq.Workplane('XY').box({const}_BOX_X_MM, {const}_BOX_Y_MM, {const}_BOX_Z_MM, centered=(True, True, False))",
+                        f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, {f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
+                        "    )",
+                    ]
         elif f.type == "cutout":
             cx = f.dims_mm.get("x")
             cy = f.dims_mm.get("y")
@@ -250,7 +262,7 @@ def fallback_code(spec: PartSpec) -> str:
                     f"    solid = solid.cut(",
                     f"        cq.Workplane('XY').box({const}_CUT_X_MM, {const}_CUT_Y_MM, {const}_CUT_Z_MM * 2.0, centered=(True, True, False))",
                     f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
-                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r} - {const}_Z_MM))",
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r} - {const}_CUT_Z_MM))",
                     "    )"
                 ]
     lines += [
