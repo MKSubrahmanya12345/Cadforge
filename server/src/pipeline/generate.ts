@@ -212,14 +212,20 @@ export function deterministicCodeFor(spec: PartSpec): string {
     } else if (f.type === 'pin') {
       const d = f.dims_mm['diameter'];
       const l = f.dims_mm['length'];
+      const count = Number(f.dims_mm['count'] ?? 1);
+      const pitch = Number(f.dims_mm['pitch'] ?? 0);
       if (!d || !l || d <= 0 || l <= 0) continue;
-      lines.push('    solid = solid.union(');
+      lines.push(`    ${c}_COUNT = ${Math.max(1, Math.floor(count))}`);
+      lines.push(`    ${c}_PITCH_MM = ${pitch}`);
+      lines.push(`    for i in range(${c}_COUNT):`);
+      lines.push(`        ${c}_OFFSET_X_MM = (i - (${c}_COUNT - 1) / 2.0) * ${c}_PITCH_MM`);
+      lines.push('        solid = solid.union(');
       lines.push(
-        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`,
+        `            cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0 + ${c}_OFFSET_X_MM, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`,
       );
-      lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
-      lines.push(`        .extrude(${c}_LENGTH_MM)`);
-      lines.push('    )');
+      lines.push(`            .circle(${c}_DIAMETER_MM / 2.0)`);
+      lines.push(`            .extrude(${c}_LENGTH_MM)`);
+      lines.push('        )');
     } else if (f.type === 'box') {
       const bx = f.dims_mm['x'];
       const by = f.dims_mm['y'];
