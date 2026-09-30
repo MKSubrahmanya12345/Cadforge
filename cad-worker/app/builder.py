@@ -242,7 +242,7 @@ def fallback_code(spec: PartSpec) -> str:
                     f"    cyl = cyl.circle({const}_DIAMETER_MM / 2.0).extrude({const}_HEIGHT_MM)",
                     f"    if {const}_AXIS == 'x': cyl = cyl.rotate((0, 0, 0), (0, 1, 0), 90)",
                     f"    elif {const}_AXIS == 'y': cyl = cyl.rotate((0, 0, 0), (1, 0, 0), -90)",
-                    f"    solid = solid.cut(cyl) if {const}_OPERATION == 'cut' else solid.union(cyl)',
+                    f"    solid = solid.cut(cyl) if {const}_OPERATION == 'cut' else solid.union(cyl)",
                 ]
         elif f.type == "pin":
             const = _const_name(f.name)
