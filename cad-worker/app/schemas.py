@@ -48,7 +48,7 @@ class Feature(BaseModel):
     dims_mm: dict[str, float] = Field(default_factory=dict)
     note: str | None = None
     axis: Literal['x', 'y', 'z'] | None = None
-    pattern: Literal['linear', 'perimeter'] | None = None
+    pattern: Literal['linear', 'perimeter', 'grid'] | None = None
     operation: Literal['add', 'cut'] | None = None
 
 
