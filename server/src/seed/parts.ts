@@ -57,7 +57,7 @@ const uno: PartSpec = PartSpecSchema.parse({
   // The PCB itself, as specified. Taller components (USB-B, barrel jack, MCU)
   // are features, not the bounding box, so a part is measured by the board it
   // is, and the LED standing on it is the tallest thing in the assembly.
-  bbox_mm: { x: 68.58, y: 53.34, z: 14.0 },
+  bbox_mm: { x: 68.58, y: 53.34, z: 12.6 },
   base_thickness_mm: 1.6,
   pitch_mm: UNO_DIGITAL_PITCH,
   material: 'FR-4 PCB',
