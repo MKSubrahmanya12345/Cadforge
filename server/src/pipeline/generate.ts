@@ -215,7 +215,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
       if (!d || !l || d <= 0 || l <= 0) continue;
       lines.push('    solid = solid.union(');
       lines.push(
-        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, BASE_THICKNESS_MM))`,
+        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`,
       );
       lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
       lines.push(`        .extrude(${c}_LENGTH_MM)`);
