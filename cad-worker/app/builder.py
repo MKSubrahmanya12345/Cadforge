@@ -86,20 +86,37 @@ def build_fallback(spec: PartSpec) -> Any:
                 cyl = cyl.translate((p.x - sx / 2, p.y - sy / 2, p.z))
                 solid = solid.cut(cyl) if op == "cut" else solid.union(cyl)
         elif f.type == "pin":
-            dia = float(d.get("diameter", 0.0))
-            length = float(d.get("length", 0.0))
-            count = int(d.get("count", 1) or 1)
-            pitch = float(d.get("pitch", 0.0) or 0.0)
-            if dia > 0 and length > 0:
-                for i in range(count):
-                    ox = (i - (count - 1) / 2) * pitch if count > 1 else 0.0
-                    solid = solid.union(
-                        cq.Workplane("XY")
-                        .circle(dia / 2)
-                        .extrude(length)
-                        .translate((p.x - sx / 2 + ox, p.y - sy / 2, p.z))
-                    )
-        elif f.type in ("box", "rounded_box"):
+            pattern = f.pattern or "linear"
+            if pattern == "perimeter":
+                body_x = float(d.get("body_x", 0.0))
+                body_y = float(d.get("body_y", 0.0))
+                lead_length = float(d.get("lead_length", 0.0))
+                lead_width = float(d.get("lead_width", 0.0))
+                lead_height = float(d.get("lead_height", 0.0))
+                count_per_side = int(d.get("count_per_side", 0) or 0)
+                pitch = float(d.get("pitch", 0.0) or 0.0)
+                if body_x > 0 and body_y > 0 and lead_length > 0 and lead_width > 0 and lead_height > 0 and count_per_side > 0:
+                    for i in range(count_per_side):
+                        off = (i - (count_per_side - 1) / 2) * pitch
+                        for x, y, bx, by in (
+                            (off, body_y / 2 + lead_length / 2, lead_width, lead_length),
+                            (off, -body_y / 2 - lead_length / 2, lead_width, lead_length),
+                            (body_x / 2 + lead_length / 2, off, lead_length, lead_width),
+                            (-body_x / 2 - lead_length / 2, off, lead_length, lead_width),
+                        ):
+                            pad = cq.Workplane("XY").box(bx, by, lead_height, centered=(True, True, False))
+                            solid = solid.union(pad.translate((p.x - sx / 2 + x, p.y - sy / 2 + y, p.z)))
+            else:
+                dia = float(d.get("diameter", 0.0))
+                length = float(d.get("length", 0.0))
+                count = int(d.get("count", 1) or 1)
+                pitch = float(d.get("pitch", 0.0) or 0.0)
+                if dia > 0 and length > 0:
+                    for i in range(count):
+                        ox = (i - (count - 1) / 2) * pitch if count > 1 else 0.0
+                        pin = cq.Workplane("XY").circle(dia / 2).extrude(length)
+                        solid = solid.union(pin.translate((p.x - sx / 2 + ox, p.y - sy / 2, p.z)))
+        elif f.type in ("box", "rounded_box", "pad"):
             bx = float(d.get("x", 0.0))
             by = float(d.get("y", 0.0))
             bz = float(d.get("z", 0.0))
