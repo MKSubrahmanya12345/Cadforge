@@ -49,6 +49,12 @@ class Feature(BaseModel):
     note: str | None = None
 
 
+class ProfilePoint(BaseModel):
+    model_config = StrictModel
+    x: float
+    y: float
+
+
 class Anchor(BaseModel):
     model_config = StrictModel
     name: str
@@ -79,6 +85,7 @@ class PartSpec(BaseModel):
     aliases: list[str] = Field(default_factory=list)
     bbox_mm: Bbox
     base_thickness_mm: float | None = None
+    profile_mm: list[ProfilePoint] | None = None
     features: list[Feature] = Field(default_factory=list)
     anchors: list[Anchor] = Field(default_factory=list)
     pitch_mm: float | None = None
