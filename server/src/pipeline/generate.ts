@@ -163,6 +163,10 @@ export function deterministicCodeFor(spec: PartSpec): string {
     `HEIGHT_MM = ${sz}`,
     `BASE_THICKNESS_MM = ${spec.base_thickness_mm ?? sz}`,
   ];
+  if (spec.profile_mm) {
+    const profile = spec.profile_mm.map((pt) => [pt.x - sx / 2, pt.y - sy / 2]);
+    lines.push(`PROFILE_POINTS = ${JSON.stringify(profile)}`);
+  }
   const constOf = (name: string): string => {
     const c = name.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
     return c.length > 0 ? c : 'FEATURE';
@@ -181,9 +185,13 @@ export function deterministicCodeFor(spec: PartSpec): string {
   }
 
   lines.push('', '', 'def build() -> cq.Workplane:');
-  lines.push('    solid = cq.Workplane("XY").box(');
-  lines.push('        LENGTH_MM, WIDTH_MM, BASE_THICKNESS_MM, centered=(True, True, False)');
-  lines.push('    )');
+  if (spec.profile_mm) {
+    lines.push('    solid = cq.Workplane("XY").polyline(PROFILE_POINTS).close().extrude(BASE_THICKNESS_MM)');
+  } else {
+    lines.push('    solid = cq.Workplane("XY").box(');
+    lines.push('        LENGTH_MM, WIDTH_MM, BASE_THICKNESS_MM, centered=(True, True, False)');
+    lines.push('    )');
+  }
 
   for (const f of spec.features) {
     const c = constOf(f.name);
