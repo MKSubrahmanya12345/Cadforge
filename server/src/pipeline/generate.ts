@@ -18,6 +18,28 @@ export async function generatePart(
   spec: PartSpec,
 ): Promise<GeneratedPart> {
   const validated = assertValidSpec(spec);
+
+  // Verified seed parts are canonical library geometry, not LLM design prompts.
+  // Build them deterministically first so known hardware cannot regress into a
+  // generic block merely because codegen produced a plausible-looking answer.
+  if (validated.verified && validated.origin === 'seed') {
+    ctx.log('info', instanceName + ': using canonical verified geometry');
+    const canonical = await workerFallback(instanceName, validated);
+    if (canonical.ok && canonical.valid) {
+      ctx.log('success', instanceName + ': canonical geometry validated');
+      return {
+        instanceName,
+        partId: validated.id,
+        spec: validated,
+        code: deterministicCodeFor(validated),
+        usedFallback: false,
+        attempts: 1,
+        diff: [],
+      };
+    }
+    ctx.log('warn', instanceName + ': canonical geometry failed validation; entering LLM repair path');
+  }
+
   let correctionNotes = '';
   const allDiffs: string[] = [];
   const maxAttempts = env.VALIDATE_MAX_RETRIES + 1;
@@ -139,6 +161,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
     `LENGTH_MM = ${sx}`,
     `WIDTH_MM = ${sy}`,
     `HEIGHT_MM = ${sz}`,
+    `BASE_THICKNESS_MM = ${spec.base_thickness_mm ?? sz}`,
   ];
   const constOf = (name: string): string => {
     const c = name.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
@@ -180,7 +203,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
       if (!d || !h || d <= 0 || h <= 0) continue;
       lines.push('    solid = solid.union(');
       lines.push(
-        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, HEIGHT_MM))`,
+        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, BASE_THICKNESS_MM))`,
       );
       lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
       lines.push(`        .extrude(${c}_HEIGHT_MM)`);
