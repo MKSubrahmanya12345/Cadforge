@@ -57,7 +57,7 @@ const uno: PartSpec = PartSpecSchema.parse({
   // The PCB itself, as specified. Taller components (USB-B, barrel jack, MCU)
   // are features, not the bounding box, so a part is measured by the board it
   // is, and the LED standing on it is the tallest thing in the assembly.
-  bbox_mm: { x: 68.58, y: 53.34, z: 1.6 },
+  bbox_mm: { x: 68.58, y: 53.34, z: 14.0 },
   pitch_mm: UNO_DIGITAL_PITCH,
   material: 'FR-4 PCB',
   color_hex: '#0f9d58',
@@ -69,10 +69,34 @@ const uno: PartSpec = PartSpecSchema.parse({
     hole('mount_hole_2', 15.24, 50.8, 3.2, 'board mounting hole'),
     hole('mount_hole_3', 66.04, 7.62, 3.2, 'board mounting hole'),
     hole('mount_hole_4', 66.04, 35.56, 3.2, 'board mounting hole'),
-    { type: 'cylinder', name: 'barrel_jack', position_mm: { x: 3.1, y: 47.0, z: 0 }, dims_mm: { diameter: 9.0, height: 11.0 }, note: 'DC power jack body' },
-    { type: 'box', name: 'usb_b_block', position_mm: { x: 0, y: 15.5, z: 1.6 }, dims_mm: { x: 12.0, y: 16.0, z: 11.0 }, note: 'APPROXIMATE until researched: USB-B connector block' },
-    { type: 'box', name: 'atmega328p_dip28', position_mm: { x: 34.29, y: 22.86, z: 1.6 }, dims_mm: { x: 34.5, y: 9.6, z: 4.0 }, note: 'main MCU package outline' },
-    { type: 'box', name: 'voltage_regulator', position_mm: { x: 5.0, y: 5.0, z: 1.6 }, dims_mm: { x: 10.0, y: 15.0, z: 4.5 }, note: 'TO-252 regulator + heatsink tab' },
+
+    // Tall mechanical/connectors: their Z dimensions are included in bbox_mm.
+    { type: 'box', name: 'usb_b_shell', position_mm: { x: 6.0, y: 23.5, z: 1.6 }, dims_mm: { x: 12.0, y: 16.0, z: 11.0 }, note: 'USB-B metal shell envelope' },
+    { type: 'cutout', name: 'usb_b_opening', position_mm: { x: 6.0, y: 23.5, z: 1.6 }, dims_mm: { x: 8.0, y: 10.0, z: 5.0 }, note: 'front connector opening' },
+    { type: 'box', name: 'barrel_jack_body', position_mm: { x: 3.1, y: 47.0, z: 1.6 }, dims_mm: { x: 10.0, y: 12.0, z: 9.5 }, note: 'DC barrel jack body' },
+    { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: 3.1, y: 47.0, z: 4.5 }, dims_mm: { diameter: 5.5, height: 6.0 }, note: 'power jack visible bore' },
+
+    // Main IC and support components.
+    { type: 'box', name: 'atmega328p_dip28', position_mm: { x: 34.29, y: 22.86, z: 1.6 }, dims_mm: { x: 34.5, y: 9.6, z: 4.0 }, note: 'DIP-28 MCU package' },
+    { type: 'box', name: 'usb_interface_ic', position_mm: { x: 16.0, y: 31.0, z: 1.6 }, dims_mm: { x: 8.0, y: 8.0, z: 2.2 }, note: 'USB interface IC package' },
+    { type: 'box', name: 'voltage_regulator', position_mm: { x: 7.0, y: 7.0, z: 1.6 }, dims_mm: { x: 10.0, y: 6.0, z: 4.5 }, note: 'voltage regulator package' },
+    { type: 'box', name: 'crystal', position_mm: { x: 24.0, y: 31.0, z: 1.6 }, dims_mm: { x: 10.0, y: 4.0, z: 3.5 }, note: '16 MHz crystal package' },
+    { type: 'box', name: 'reset_switch', position_mm: { x: 55.0, y: 44.0, z: 1.6 }, dims_mm: { x: 6.0, y: 6.0, z: 4.0 }, note: 'reset tactile switch' },
+
+    // Headers: continuous housings plus explicit pin rows.
+    { type: 'box', name: 'digital_header_body', position_mm: { x: 39.0, y: 50.0, z: 1.6 }, dims_mm: { x: 48.3, y: 2.54, z: 8.5 }, note: 'D0-D13 header housing' },
+    { type: 'box', name: 'power_header_body', position_mm: { x: 62.0, y: 50.0, z: 1.6 }, dims_mm: { x: 15.2, y: 2.54, z: 8.5 }, note: 'power/control header housing' },
+    { type: 'box', name: 'analog_header_body', position_mm: { x: 33.0, y: 3.8, z: 1.6 }, dims_mm: { x: 15.2, y: 2.54, z: 8.5 }, note: 'A0-A5 analog header housing' },
+    { type: 'box', name: 'icsp_header_body', position_mm: { x: 46.0, y: 17.0, z: 1.6 }, dims_mm: { x: 7.62, y: 7.62, z: 8.5 }, note: '2x3 ICSP header housing' },
+
+    // Visible passives / indicators.
+    { type: 'cylinder', name: 'power_led', position_mm: { x: 11.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 3.0, height: 4.0 }, note: 'power indicator LED' },
+    { type: 'cylinder', name: 'tx_led', position_mm: { x: 18.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 3.0, height: 4.0 }, note: 'TX indicator LED' },
+    { type: 'cylinder', name: 'rx_led', position_mm: { x: 22.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 3.0, height: 4.0 }, note: 'RX indicator LED' },
+    { type: 'box', name: 'capacitor_1', position_mm: { x: 14.0, y: 9.0, z: 1.6 }, dims_mm: { x: 3.5, y: 3.5, z: 6.0 }, note: 'electrolytic capacitor' },
+    { type: 'box', name: 'capacitor_2', position_mm: { x: 20.0, y: 9.0, z: 1.6 }, dims_mm: { x: 3.5, y: 3.5, z: 6.0 }, note: 'electrolytic capacitor' },
+    { type: 'box', name: 'resistor_1', position_mm: { x: 28.0, y: 9.0, z: 1.6 }, dims_mm: { x: 6.3, y: 2.3, z: 2.3 }, note: 'SMD/axial resistor envelope' },
+    { type: 'box', name: 'resistor_2', position_mm: { x: 37.0, y: 9.0, z: 1.6 }, dims_mm: { x: 6.3, y: 2.3, z: 2.3 }, note: 'SMD/axial resistor envelope' },
   ],
   anchors: [
     ...unoDigitalAnchors(),
