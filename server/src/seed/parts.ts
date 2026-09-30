@@ -86,8 +86,9 @@ const uno: PartSpec = PartSpecSchema.parse({
     hole('mount_hole_4', 66.04, 35.56, 3.2, 'board mounting hole'),
 
     // Tall mechanical/connectors: their Z dimensions are included in bbox_mm.
-    { type: 'box', name: 'usb_b_shell', position_mm: { x: 6.0, y: 23.5, z: 1.6 }, dims_mm: { x: 12.0, y: 16.0, z: 11.0 }, note: 'USB-B metal shell envelope' },
-    { type: 'cutout', name: 'usb_b_opening', position_mm: { x: 6.0, y: 23.5, z: 1.6 }, dims_mm: { x: 8.0, y: 10.0, z: 5.0 }, note: 'front connector opening' },
+    { type: 'rounded_box', name: 'usb_b_shell', position_mm: { x: 6.02, y: 23.5, z: 1.6 }, dims_mm: { x: 12.04, y: 16.0, z: 11.0, radius: 1.0 }, note: 'right-angle USB-B nickel-plated shell; 12.04 mm front width, 16.0 mm body depth' },
+    { type: 'box', name: 'usb_b_flange', position_mm: { x: 5.8, y: 23.5, z: 1.6 }, dims_mm: { x: 12.5, y: 16.4, z: 1.2 }, note: 'front retention flange' },
+    { type: 'cutout', name: 'usb_b_opening', position_mm: { x: 1.2, y: 23.5, z: 3.6 }, dims_mm: { x: 3.0, y: 8.45, z: 7.78 }, note: 'Type-B mating opening on the board-edge face' },
     { type: 'box', name: 'barrel_jack_body', position_mm: { x: 5.0, y: 47.0, z: 1.6 }, dims_mm: { x: 10.0, y: 12.0, z: 9.5 }, note: 'DC barrel jack body' },
     { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: 5.0, y: 47.0, z: 4.5 }, dims_mm: { diameter: 5.5, height: 6.0 }, note: 'power jack visible bore' },
 
