@@ -54,9 +54,13 @@ def build_fallback(spec: PartSpec) -> Any:
     import cadquery as cq
 
     sx, sy, sz = spec.bbox_mm.x, spec.bbox_mm.y, spec.bbox_mm.z
+    base_z = float(spec.base_thickness_mm or sz)
+    if base_z <= 0 or base_z > sz:
+        raise ValueError(f"invalid base_thickness_mm={base_z} for bbox z={sz}")
 
-    # Start from the exact bounding box so the scale guarantee holds.
-    solid = cq.Workplane("XY").box(sx, sy, sz, centered=(True, True, False))
+    # The bbox is the COMPLETE physical envelope. The base body may be thinner
+    # than that envelope when real components stand above the PCB.
+    solid = cq.Workplane("XY").box(sx, sy, base_z, centered=(True, True, False))
 
     # Cylinders: bosses standing proud of the top face.
     for f in spec.features:
@@ -139,6 +143,7 @@ def fallback_code(spec: PartSpec) -> str:
         f"LENGTH_MM = {sx!r}",
         f"WIDTH_MM = {sy!r}",
         f"HEIGHT_MM = {sz!r}",
+        f"BASE_THICKNESS_MM = {float(spec.base_thickness_mm or sz)!r}",
     ]
     for f in spec.features:
         const = _const_name(f.name)
@@ -152,7 +157,7 @@ def fallback_code(spec: PartSpec) -> str:
         "",
         "def build() -> cq.Workplane:",
         "    solid = cq.Workplane('XY').box(",
-        "        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)",
+        "        LENGTH_MM, WIDTH_MM, BASE_THICKNESS_MM, centered=(True, True, False)",
         "    )",
     ]
     for f in spec.features:
@@ -178,7 +183,7 @@ def fallback_code(spec: PartSpec) -> str:
                 lines += [
                     f"    solid = solid.union(",
                     f"        cq.Workplane('XY', origin=({f.position_mm.x!r} - LENGTH_MM / 2.0, "
-                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, HEIGHT_MM))",
+                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, BASE_THICKNESS_MM))",
                     f"        .circle({const}_DIAMETER_MM / 2.0)",
                     f"        .extrude({const}_HEIGHT_MM)",
                     "    )",
