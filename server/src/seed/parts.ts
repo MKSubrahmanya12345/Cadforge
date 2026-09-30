@@ -74,8 +74,8 @@ const uno: PartSpec = PartSpecSchema.parse({
     // Tall mechanical/connectors: their Z dimensions are included in bbox_mm.
     { type: 'box', name: 'usb_b_shell', position_mm: { x: 6.0, y: 23.5, z: 1.6 }, dims_mm: { x: 12.0, y: 16.0, z: 11.0 }, note: 'USB-B metal shell envelope' },
     { type: 'cutout', name: 'usb_b_opening', position_mm: { x: 6.0, y: 23.5, z: 1.6 }, dims_mm: { x: 8.0, y: 10.0, z: 5.0 }, note: 'front connector opening' },
-    { type: 'box', name: 'barrel_jack_body', position_mm: { x: 3.1, y: 47.0, z: 1.6 }, dims_mm: { x: 10.0, y: 12.0, z: 9.5 }, note: 'DC barrel jack body' },
-    { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: 3.1, y: 47.0, z: 4.5 }, dims_mm: { diameter: 5.5, height: 6.0 }, note: 'power jack visible bore' },
+    { type: 'box', name: 'barrel_jack_body', position_mm: { x: 5.0, y: 47.0, z: 1.6 }, dims_mm: { x: 10.0, y: 12.0, z: 9.5 }, note: 'DC barrel jack body' },
+    { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: 5.0, y: 47.0, z: 4.5 }, dims_mm: { diameter: 5.5, height: 6.0 }, note: 'power jack visible bore' },
 
     // Main IC and support components.
     { type: 'box', name: 'atmega328p_dip28', position_mm: { x: 34.29, y: 22.86, z: 1.6 }, dims_mm: { x: 34.5, y: 9.6, z: 4.0 }, note: 'DIP-28 MCU package' },
