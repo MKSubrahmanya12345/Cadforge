@@ -9,6 +9,7 @@ export interface PartDoc {
   category: string;
   aliases: string[];
   bbox_mm: { x: number; y: number; z: number };
+  base_thickness_mm?: number;
   features: PartSpec['features'];
   anchors: PartSpec['anchors'];
   pitch_mm?: number;
@@ -85,6 +86,7 @@ const PartSpecSchemaM = new Schema<PartDoc>(
       y: { type: Number, required: true },
       z: { type: Number, required: true },
     },
+    base_thickness_mm: Number,
     features: { type: [FeatureSchema], default: [] },
     anchors: { type: [AnchorSchema], default: [] },
     pitch_mm: Number,
@@ -120,6 +122,7 @@ function normalizeDoc(doc: PartDoc): PartSpec {
     category: doc.category,
     aliases: doc.aliases,
     bbox_mm: doc.bbox_mm,
+    ...(doc.base_thickness_mm !== undefined ? { base_thickness_mm: doc.base_thickness_mm } : {}),
     features,
     anchors: doc.anchors.map((a) => ({
       name: a.name,
