@@ -94,11 +94,15 @@ const uno: PartSpec = PartSpecSchema.parse({
     { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: -0.05, y: 47.0, z: 6.5 }, dims_mm: { diameter: 5.5, height: 4.2 }, axis: 'x', operation: 'cut', note: '2.1 mm center-pin / 5.5 mm outer-diameter socket bore, viewed from board edge' },
 
     // Main IC and support components.
-    { type: 'box', name: 'atmega328p_dip28', position_mm: { x: 34.29, y: 22.86, z: 1.6 }, dims_mm: { x: 34.5, y: 9.6, z: 4.0 }, note: 'DIP-28 MCU package' },
+    { type: 'rounded_box', name: 'atmega328p_dip28_body', position_mm: { x: 34.29, y: 22.86, z: 1.6 }, dims_mm: { x: 35.56, y: 9.65, z: 4.2, radius: 0.65 }, note: 'ATmega328P DIP-28 molded package body; 0.3 in row spacing' },
+    { type: 'cutout', name: 'atmega328p_pin1_notch', position_mm: { x: 34.29, y: 22.86, z: 4.3 }, dims_mm: { x: 3.2, y: 2.2, z: 1.6 }, note: 'package orientation notch; simplified semicircular-equivalent recess' },
+    { type: 'pin', name: 'atmega328p_pins_left', position_mm: { x: 17.78, y: 18.04, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 14 }, note: 'DIP-28 leads, left row' },
+    { type: 'pin', name: 'atmega328p_pins_right', position_mm: { x: 17.78, y: 27.68, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 14 }, note: 'DIP-28 leads, right row' },
     { type: 'box', name: 'usb_interface_ic', position_mm: { x: 16.0, y: 31.0, z: 1.6 }, dims_mm: { x: 8.0, y: 8.0, z: 2.2 }, note: 'USB interface IC package' },
     { type: 'box', name: 'voltage_regulator', position_mm: { x: 7.0, y: 7.0, z: 1.6 }, dims_mm: { x: 10.0, y: 6.0, z: 4.5 }, note: 'voltage regulator package' },
     { type: 'box', name: 'crystal', position_mm: { x: 24.0, y: 31.0, z: 1.6 }, dims_mm: { x: 10.0, y: 4.0, z: 3.5 }, note: '16 MHz crystal package' },
-    { type: 'box', name: 'reset_switch', position_mm: { x: 55.0, y: 44.0, z: 1.6 }, dims_mm: { x: 6.0, y: 6.0, z: 4.0 }, note: 'reset tactile switch' },
+    { type: 'rounded_box', name: 'reset_switch_base', position_mm: { x: 55.0, y: 44.0, z: 1.6 }, dims_mm: { x: 6.0, y: 6.0, z: 2.6, radius: 0.55 }, note: 'surface-mount tactile switch body' },
+    { type: 'cylinder', name: 'reset_switch_button', position_mm: { x: 55.0, y: 44.0, z: 4.2 }, dims_mm: { diameter: 3.2, height: 1.8 }, note: 'raised tactile actuator' },
 
     // Headers: continuous housings plus explicit pin rows.
     { type: 'box', name: 'digital_header_body', position_mm: { x: 39.0, y: 50.0, z: 1.6 }, dims_mm: { x: 48.3, y: 2.54, z: 8.5 }, note: 'D0-D13 header housing' },
