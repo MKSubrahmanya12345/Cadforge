@@ -227,25 +227,47 @@ def fallback_code(spec: PartSpec) -> str:
                     f"    solid = solid.cut(cyl) if {const}_OPERATION == 'cut' else solid.union(cyl)',
                 ]
         elif f.type == "pin":
-            dia = f.dims_mm.get("diameter")
-            length = f.dims_mm.get("length")
-            count = max(1, int(f.dims_mm.get("count", 1) or 1))
-            pitch = float(f.dims_mm.get("pitch", 0.0) or 0.0)
-            if dia and length and float(dia) > 0 and float(length) > 0:
-                const = _const_name(f.name)
-                lines += [
-                    f"    {const}_COUNT = {count}",
-                    f"    {const}_PITCH_MM = {pitch!r}",
-                    f"    for i in range({const}_COUNT):",
-                    f"        {const}_OFFSET_X_MM = (i - ({const}_COUNT - 1) / 2.0) * {const}_PITCH_MM",
-                    f"        solid = solid.union(",
-                    f"            cq.Workplane('XY').circle({const}_DIAMETER_MM / 2.0)",
-                    f"            .extrude({const}_LENGTH_MM)",
-                    f"            .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0 + {const}_OFFSET_X_MM, "
-                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
-                    "        )",
-                ]
-        elif f.type in ("box", "rounded_box"):
+            const = _const_name(f.name)
+            if f.pattern == "perimeter":
+                body_x = float(f.dims_mm.get("body_x", 0.0))
+                body_y = float(f.dims_mm.get("body_y", 0.0))
+                lead_length = float(f.dims_mm.get("lead_length", 0.0))
+                lead_width = float(f.dims_mm.get("lead_width", 0.0))
+                lead_height = float(f.dims_mm.get("lead_height", 0.0))
+                count_per_side = max(1, int(f.dims_mm.get("count_per_side", 0) or 0))
+                pitch = float(f.dims_mm.get("pitch", 0.0) or 0.0)
+                if body_x > 0 and body_y > 0 and lead_length > 0 and lead_width > 0 and lead_height > 0:
+                    lines += [
+                        f"    {const}_COUNT_PER_SIDE = {count_per_side}",
+                        f"    for i in range({const}_COUNT_PER_SIDE):",
+                        f"        {const}_OFFSET = (i - ({const}_COUNT_PER_SIDE - 1) / 2.0) * {pitch!r}",
+                        f"        for {const}_X, {const}_Y, {const}_BX, {const}_BY in [",
+                        f"            ({const}_OFFSET, {body_y / 2 + lead_length / 2}, {lead_width}, {lead_length}),",
+                        f"            ({const}_OFFSET, {-body_y / 2 - lead_length / 2}, {lead_width}, {lead_length}),",
+                        f"            ({body_x / 2 + lead_length / 2}, {const}_OFFSET, {lead_length}, {lead_width}),",
+                        f"            ({-body_x / 2 - lead_length / 2}, {const}_OFFSET, {lead_length}, {lead_width}),",
+                        "        ]:",
+                        f"            solid = solid.union(cq.Workplane('XY').box({lead_width!r} if {const}_BX == {lead_width!r} else {lead_length!r}, {lead_length!r} if {const}_BY == {lead_length!r} else {lead_width!r}, {lead_height!r}, centered=(True, True, False)).translate(({f.position_mm.x!r} - LENGTH_MM / 2.0 + {const}_X, {f.position_mm.y!r} - WIDTH_MM / 2.0 + {const}_Y, {f.position_mm.z!r})))",
+                    ]
+            else:
+                dia = f.dims_mm.get("diameter")
+                length = f.dims_mm.get("length")
+                count = max(1, int(f.dims_mm.get("count", 1) or 1))
+                pitch = float(f.dims_mm.get("pitch", 0.0) or 0.0)
+                if dia and length and float(dia) > 0 and float(length) > 0:
+                    lines += [
+                        f"    {const}_COUNT = {count}",
+                        f"    {const}_PITCH_MM = {pitch!r}",
+                        f"    for i in range({const}_COUNT):",
+                        f"        {const}_OFFSET_X_MM = (i - ({const}_COUNT - 1) / 2.0) * {const}_PITCH_MM",
+                        f"        solid = solid.union(",
+                        f"            cq.Workplane('XY').circle({const}_DIAMETER_MM / 2.0)",
+                        f"            .extrude({const}_LENGTH_MM)",
+                        f"            .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0 + {const}_OFFSET_X_MM, "
+                        f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
+                        "        )",
+                    ]
+        elif f.type in ("box", "rounded_box", "pad"):
             bx = f.dims_mm.get("x")
             by = f.dims_mm.get("y")
             bz = f.dims_mm.get("z")
