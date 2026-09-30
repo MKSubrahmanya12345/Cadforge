@@ -35,6 +35,12 @@ def uno_spec() -> PartSpec:
                 position_mm=Vec3(x=15.24, y=50.8, z=0.0),
                 dims_mm={"diameter": 3.2},
             ),
+            Feature(
+                type="box",
+                name="usb_shell",
+                position_mm=Vec3(x=6.0, y=23.5, z=1.6),
+                dims_mm={"x": 12.0, "y": 16.0, "z": 12.4},
+            ),
         ],
         anchors=[],
         confidence=0.95,
