@@ -89,8 +89,9 @@ const uno: PartSpec = PartSpecSchema.parse({
     { type: 'rounded_box', name: 'usb_b_shell', position_mm: { x: 6.02, y: 23.5, z: 1.6 }, dims_mm: { x: 12.04, y: 16.0, z: 11.0, radius: 1.0 }, note: 'right-angle USB-B nickel-plated shell; 12.04 mm front width, 16.0 mm body depth' },
     { type: 'box', name: 'usb_b_flange', position_mm: { x: 5.8, y: 23.5, z: 1.6 }, dims_mm: { x: 12.5, y: 16.4, z: 1.2 }, note: 'front retention flange' },
     { type: 'cutout', name: 'usb_b_opening', position_mm: { x: 1.2, y: 23.5, z: 3.6 }, dims_mm: { x: 3.0, y: 8.45, z: 7.78 }, note: 'Type-B mating opening on the board-edge face' },
-    { type: 'box', name: 'barrel_jack_body', position_mm: { x: 5.0, y: 47.0, z: 1.6 }, dims_mm: { x: 10.0, y: 12.0, z: 9.5 }, note: 'DC barrel jack body' },
-    { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: 5.0, y: 47.0, z: 4.5 }, dims_mm: { diameter: 5.5, height: 6.0 }, note: 'power jack visible bore' },
+    { type: 'rounded_box', name: 'barrel_jack_body', position_mm: { x: 5.0, y: 47.0, z: 1.6 }, dims_mm: { x: 10.0, y: 12.8, z: 9.8, radius: 1.2 }, note: 'black right-angle DC barrel jack housing; representative 5.5/2.1 mm connector body' },
+    { type: 'cylinder', name: 'barrel_jack_front_boss', position_mm: { x: 0.0, y: 47.0, z: 6.5 }, dims_mm: { diameter: 7.8, height: 2.8 }, axis: 'x', note: 'front circular socket boss' },
+    { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: -0.05, y: 47.0, z: 6.5 }, dims_mm: { diameter: 5.5, height: 4.2 }, axis: 'x', operation: 'cut', note: '2.1 mm center-pin / 5.5 mm outer-diameter socket bore, viewed from board edge' },
 
     // Main IC and support components.
     { type: 'box', name: 'atmega328p_dip28', position_mm: { x: 34.29, y: 22.86, z: 1.6 }, dims_mm: { x: 34.5, y: 9.6, z: 4.0 }, note: 'DIP-28 MCU package' },
@@ -123,7 +124,7 @@ const uno: PartSpec = PartSpecSchema.parse({
     ...unoAnalogAnchors(),
     anchor('top_center', 34.29, 26.67, 1.6, { x: 0, y: 0, z: 1 }),
     anchor('top_front_left', 13.97, 2.54, 1.6, { x: 0, y: 0, z: 1 }),
-    anchor('power_jack', 3.1, 47.0, 1.6, { x: 0, y: 0, z: 1 }),
+    anchor('power_jack', 5.0, 47.0, 6.5, { x: 0, y: 0, z: 1 }),
     anchor('usb_b_center', 6.0, 23.5, 1.6, { x: 0, y: 0, z: 1 }),
     anchor('mount_hole_1', 13.97, 2.54, 0),
     anchor('mount_hole_2', 15.24, 50.8, 0),
@@ -139,6 +140,11 @@ const uno: PartSpec = PartSpecSchema.parse({
     ]),
     source(UNO_D, 'Arduino Uno Rev3 product page and pinout', [
       { field: 'pins', value: 'D0-D13 digital, A0-A5 analog, 5V, GND, RESET, AREF, 3V3', source_url: UNO_D },
+    ]),
+    source('https://www.kycon.com/Pub_Eng_Draw/KPJX-3S-S.pdf', 'KYCON DC power jack mechanical drawing', [
+      { field: 'connector_family', value: '2.1/5.5 mm DC barrel jack family', source_url: 'https://www.kycon.com/Pub_Eng_Draw/KPJX-3S-S.pdf' },
+      { field: 'body', value: 'approximately 15.0 mm wide x 16.0-17.4 mm long x 15.0 mm tall on representative KPJX family drawing', source_url: 'https://www.kycon.com/Pub_Eng_Draw/KPJX-3S-S.pdf' },
+      { field: 'front_diameter', value: 'approximately 12.9 mm shield/body diameter on representative drawing', source_url: 'https://www.kycon.com/Pub_Eng_Draw/KPJX-3S-S.pdf' },
     ]),
     source('https://www.kycon.com/Pub_Eng_Draw/KUSBEX-BSFS1N-xxx.pdf', 'KYCON USB Type-B right-angle receptacle mechanical drawing', [
       { field: 'shell_width', value: '12.0 mm nominal front width', source_url: 'https://www.kycon.com/Pub_Eng_Draw/KUSBEX-BSFS1N-xxx.pdf' },
