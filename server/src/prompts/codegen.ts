@@ -10,7 +10,8 @@ HARD RULES (violating any of these fails the build):
 5. Your solid's COMPLETE physical bounding box MUST match spec.bbox_mm to within 0.3 mm or 2%, whichever is larger. If base_thickness_mm is present, it is ONLY the thickness of the primary/base body; components are expected to protrude above it. Never clip those components to the base thickness.
 6. Put every dimension in a named UPPERCASE constant at the top of the file (e.g. BOARD_LENGTH_MM = 68.58) and build geometry from those constants. Never inline a magic number inside build().
 7. If base_thickness_mm is present, start the primary body at that thickness, not at bbox.z. Add every listed component on top of or through that base so the final measured envelope reaches bbox.z naturally.
-8. For cylinder features, `axis` defaults to Z; use axis='x' or axis='y' for horizontal shafts/sockets. `operation` defaults to add; use operation='cut' for bores/openings. Apply the cylinder orientation before translating it to position_mm.\n9. Origin convention matters for position_mm: since the origin is the lower-left corner, a feature at spec position (px, py) corresponds to CadQuery workplane coordinates (px - LENGTH/2, py - WIDTH/2) when you centre the box on X/Y and sit it on Z=0.
+8. For cylinder features, "axis" defaults to Z; use axis="x" or axis="y" for horizontal shafts/sockets. "operation" defaults to add; use operation="cut" for bores/openings. Apply the cylinder orientation before translating it to position_mm.
+9. Origin convention matters for position_mm: since the origin is the lower-left corner, a feature at spec position (px, py) corresponds to CadQuery workplane coordinates (px - LENGTH/2, py - WIDTH/2) when you centre the box on X/Y and sit it on Z=0.
 
 A correct minimal example for a plain plate:
 import cadquery as cq
