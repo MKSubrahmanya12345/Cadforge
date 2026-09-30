@@ -15,6 +15,13 @@ export const BboxSchema = z.object({
 });
 export type Bbox = z.infer<typeof BboxSchema>;
 
+/** 2D footprint coordinates in millimetres, measured from the part's XY origin. */
+export const ProfilePointSchema = z.object({
+  x: finite,
+  y: finite,
+});
+export type ProfilePoint = z.infer<typeof ProfilePointSchema>;
+
 /**
  * dims_mm is intentionally open (a dict of named millimetre dimensions) so a
  * spec can carry `diameter`, `pitch`, `width`, ... without the schema knowing
@@ -86,6 +93,8 @@ export const PartSpecSchema = z.object({
   bbox_mm: BboxSchema,
   /** Thickness of the primary/base body when bbox_mm includes components mounted above it. */
   base_thickness_mm: finite.positive().optional(),
+  /** Optional exact 2D base footprint. When omitted, the base is a rectangle matching bbox_mm.x/y. */
+  profile_mm: z.array(ProfilePointSchema).min(3).optional(),
   features: z.array(FeatureSchema).default([]),
   anchors: z.array(AnchorSchema).default([]),
   pitch_mm: finite.positive().optional(),
