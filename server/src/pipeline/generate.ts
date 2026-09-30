@@ -225,18 +225,24 @@ export function deterministicCodeFor(spec: PartSpec): string {
       const by = f.dims_mm['y'];
       const bz = f.dims_mm['z'];
       if (!bx || !by || !bz || bx <= 0 || by <= 0 || bz <= 0) continue;
+      lines.push(`    ${c}_BOX_X_MM = ${bx}`);
+      lines.push(`    ${c}_BOX_Y_MM = ${by}`);
+      lines.push(`    ${c}_BOX_Z_MM = ${bz}`);
       lines.push('    solid = solid.union(');
-      lines.push(`        cq.Workplane("XY").box(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM, centered=(True, True, False))`);
-      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM))`);
+      lines.push(`        cq.Workplane("XY").box(${c}_BOX_X_MM, ${c}_BOX_Y_MM, ${c}_BOX_Z_MM, centered=(True, True, False))`);
+      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`);
       lines.push('    )');
     } else if (f.type === 'cutout') {
       const bx = f.dims_mm['x'];
       const by = f.dims_mm['y'];
       const bz = f.dims_mm['z'];
       if (!bx || !by || !bz || bx <= 0 || by <= 0 || bz <= 0) continue;
+      lines.push(`    ${c}_CUT_X_MM = ${bx}`);
+      lines.push(`    ${c}_CUT_Y_MM = ${by}`);
+      lines.push(`    ${c}_CUT_Z_MM = ${bz}`);
       lines.push('    solid = solid.cut(');
-      lines.push(`        cq.Workplane("XY").box(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM * 2.0, centered=(True, True, False))`);
-      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM - ${c}_Z_MM))`);
+      lines.push(`        cq.Workplane("XY").box(${c}_CUT_X_MM, ${c}_CUT_Y_MM, ${c}_CUT_Z_MM * 2.0, centered=(True, True, False))`);
+      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM - ${c}_CUT_Z_MM))`);
       lines.push('    )');
     }
   }
