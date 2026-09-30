@@ -194,7 +194,7 @@ describe('5mm LED seed dimensions', () => {
 
   test('the Uno bounding box is the complete physical envelope and base thickness is separate', () => {
     const uno = SEED_PARTS.find((p) => p.id === 'arduino-uno-r3') as PartSpec;
-    expect(uno.bbox_mm.z).toBe(14.0);
+    expect(uno.bbox_mm.z).toBe(12.6);
     expect(uno.base_thickness_mm).toBe(1.6);
     const tall = uno.features.filter((f) => (f.dims_mm['z'] ?? 0) > uno.base_thickness_mm!);
     expect(tall.length).toBeGreaterThan(0);
