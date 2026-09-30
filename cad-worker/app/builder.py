@@ -214,8 +214,11 @@ def fallback_code(spec: PartSpec) -> str:
             if bx and by and bz and float(bx) > 0 and float(by) > 0 and float(bz) > 0:
                 const = _const_name(f.name)
                 lines += [
+                    f"    {const}_BOX_X_MM = {float(bx)!r}",
+                    f"    {const}_BOX_Y_MM = {float(by)!r}",
+                    f"    {const}_BOX_Z_MM = {float(bz)!r}",
                     f"    solid = solid.union(",
-                    f"        cq.Workplane('XY').box({const}_X_MM, {const}_Y_MM, {const}_Z_MM, centered=(True, True, False))",
+                    f"        cq.Workplane('XY').box({const}_BOX_X_MM, {const}_BOX_Y_MM, {const}_BOX_Z_MM, centered=(True, True, False))",
                     f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
                     f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
                     "    )",
@@ -227,8 +230,11 @@ def fallback_code(spec: PartSpec) -> str:
             if cx and cy and cz and float(cx) > 0 and float(cy) > 0 and float(cz) > 0:
                 const = _const_name(f.name)
                 lines += [
+                    f"    {const}_CUT_X_MM = {float(cx)!r}",
+                    f"    {const}_CUT_Y_MM = {float(cy)!r}",
+                    f"    {const}_CUT_Z_MM = {float(cz)!r}",
                     f"    solid = solid.cut(",
-                    f"        cq.Workplane('XY').box({const}_X_MM, {const}_Y_MM, {const}_Z_MM * 2.0, centered=(True, True, False))",
+                    f"        cq.Workplane('XY').box({const}_CUT_X_MM, {const}_CUT_Y_MM, {const}_CUT_Z_MM * 2.0, centered=(True, True, False))",
                     f"        .translate(({f.position_mm.x!r} - LENGTH_MM / 2.0, "
                     f"{f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r} - {const}_Z_MM))",
                     "    )"
