@@ -20,7 +20,8 @@ def uno_spec() -> PartSpec:
         id="arduino-uno-r3",
         name="Arduino Uno R3",
         category="board",
-        bbox_mm={"x": 68.58, "y": 53.34, "z": 1.6},
+        bbox_mm={"x": 68.58, "y": 53.34, "z": 14.0},
+        base_thickness_mm=1.6,
         features=[
             Feature(
                 type="hole",
