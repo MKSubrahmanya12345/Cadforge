@@ -177,7 +177,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
     for (const [k, v] of Object.entries(f.dims_mm)) {
       lines.push(`${c}_${k.toUpperCase()}_MM = ${v}`);
     }
-    if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin' || f.type === 'box' || f.type === 'rounded_box' || f.type === 'cutout') {
+    if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin' || f.type === 'box' || f.type === 'rounded_box' || f.type === 'pad' || f.type === 'cutout') {
       lines.push(`${c}_X_MM = ${f.position_mm.x}`);
       lines.push(`${c}_Y_MM = ${f.position_mm.y}`);
       lines.push(`${c}_POS_Z_MM = ${f.position_mm.z}`);
@@ -223,18 +223,35 @@ export function deterministicCodeFor(spec: PartSpec): string {
       const l = f.dims_mm['length'];
       const count = Number(f.dims_mm['count'] ?? 1);
       const pitch = Number(f.dims_mm['pitch'] ?? 0);
-      if (!d || !l || d <= 0 || l <= 0) continue;
-      lines.push(`    ${c}_COUNT = ${Math.max(1, Math.floor(count))}`);
-      lines.push(`    ${c}_PITCH_MM = ${pitch}`);
-      lines.push(`    for i in range(${c}_COUNT):`);
-      lines.push(`        ${c}_OFFSET_X_MM = (i - (${c}_COUNT - 1) / 2.0) * ${c}_PITCH_MM`);
-      lines.push('        solid = solid.union(');
-      lines.push(
-        `            cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0 + ${c}_OFFSET_X_MM, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`,
-      );
-      lines.push(`            .circle(${c}_DIAMETER_MM / 2.0)`);
-      lines.push(`            .extrude(${c}_LENGTH_MM)`);
-      lines.push('        )');
+      if (f.pattern === 'perimeter') {
+        const bx = Number(f.dims_mm['body_x'] ?? 0);
+        const by = Number(f.dims_mm['body_y'] ?? 0);
+        const ll = Number(f.dims_mm['lead_length'] ?? 0);
+        const lw = Number(f.dims_mm['lead_width'] ?? 0);
+        const lh = Number(f.dims_mm['lead_height'] ?? 0);
+        const cps = Math.max(1, Math.floor(Number(f.dims_mm['count_per_side'] ?? 1)));
+        if (bx <= 0 || by <= 0 || ll <= 0 || lw <= 0 || lh <= 0) continue;
+        lines.push(`    for i in range(${cps}):`);
+        lines.push(`        ${c}_OFFSET = (i - (${cps} - 1) / 2.0) * ${pitch}`);
+        lines.push(`        for ${c}_PX, ${c}_PY, ${c}_BX, ${c}_BY in [`);
+        lines.push(`            (${c}_OFFSET, ${by / 2 + ll / 2}, ${lw}, ${ll}),`);
+        lines.push(`            (${c}_OFFSET, ${-by / 2 - ll / 2}, ${lw}, ${ll}),`);
+        lines.push(`            (${bx / 2 + ll / 2}, ${c}_OFFSET, ${ll}, ${lw}),`);
+        lines.push(`            (${-bx / 2 - ll / 2}, ${c}_OFFSET, ${ll}, ${lw}),`);
+        lines.push('        ]:');
+        lines.push(`            solid = solid.union(cq.Workplane("XY").box(${c}_BX, ${c}_BY, ${lh}, centered=(True, True, False)).translate((${c}_X_MM - LENGTH_MM / 2.0 + ${c}_PX, ${c}_Y_MM - WIDTH_MM / 2.0 + ${c}_PY, ${c}_POS_Z_MM)))`);
+      } else {
+        if (!d || !l || d <= 0 || l <= 0) continue;
+        lines.push(`    ${c}_COUNT = ${Math.max(1, Math.floor(count))}`);
+        lines.push(`    ${c}_PITCH_MM = ${pitch}`);
+        lines.push(`    for i in range(${c}_COUNT):`);
+        lines.push(`        ${c}_OFFSET_X_MM = (i - (${c}_COUNT - 1) / 2.0) * ${c}_PITCH_MM`);
+        lines.push('        solid = solid.union(');
+        lines.push(`            cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0 + ${c}_OFFSET_X_MM, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`);
+        lines.push(`            .circle(${c}_DIAMETER_MM / 2.0)`);
+        lines.push(`            .extrude(${c}_LENGTH_MM)`);
+        lines.push('        )');
+      }
     } else if (f.type === 'box' || f.type === 'rounded_box') {
       const bx = f.dims_mm['x'];
       const by = f.dims_mm['y'];
