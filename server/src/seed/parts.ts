@@ -91,7 +91,7 @@ const uno: PartSpec = PartSpecSchema.parse({
     { type: 'cutout', name: 'usb_b_opening', position_mm: { x: 1.2, y: 23.5, z: 3.6 }, dims_mm: { x: 3.0, y: 8.45, z: 7.78 }, note: 'Type-B mating opening on the board-edge face' },
     { type: 'rounded_box', name: 'barrel_jack_body', position_mm: { x: 5.0, y: 47.0, z: 1.6 }, dims_mm: { x: 10.0, y: 12.8, z: 9.8, radius: 1.2 }, note: 'black right-angle DC barrel jack housing; representative 5.5/2.1 mm connector body' },
     { type: 'cylinder', name: 'barrel_jack_front_boss', position_mm: { x: 0.0, y: 47.0, z: 6.5 }, dims_mm: { diameter: 7.8, height: 2.8 }, axis: 'x', note: 'front circular socket boss' },
-    { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: -0.05, y: 47.0, z: 6.5 }, dims_mm: { diameter: 5.5, height: 4.2 }, axis: 'x', operation: 'cut', note: '2.1 mm center-pin / 5.5 mm outer-diameter socket bore, viewed from board edge' },
+    { type: 'cylinder', name: 'barrel_jack_bore', position_mm: { x: 0.0, y: 47.0, z: 6.5 }, dims_mm: { diameter: 5.5, height: 4.2 }, axis: 'x', operation: 'cut', note: '2.1 mm center-pin / 5.5 mm outer-diameter socket bore, viewed from board edge' },
 
     // Main IC and support components.
     { type: 'rounded_box', name: 'atmega328p_dip28_body', position_mm: { x: 34.29, y: 22.86, z: 1.6 }, dims_mm: { x: 35.56, y: 9.65, z: 4.2, radius: 0.65 }, note: 'ATmega328P DIP-28 molded package body; 0.3 in row spacing' },
@@ -118,7 +118,7 @@ const uno: PartSpec = PartSpecSchema.parse({
     { type: 'pin', name: 'digital_header_pins', position_mm: { x: 26.67, y: 48.26, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 14 }, note: 'D0-D13 header pin row' },
     { type: 'pin', name: 'power_header_pins', position_mm: { x: 62.23, y: 48.26, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 8 }, note: 'power/control header pins' },
     { type: 'pin', name: 'analog_header_pins', position_mm: { x: 26.67, y: 5.08, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 6 }, note: 'A0-A5 header pins' },
-    { type: 'pin', name: 'icsp_header_pins', position_mm: { x: 46.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 6 }, note: '2x3 ICSP header pin group' },
+    { type: 'pin', name: 'icsp_header_pins', pattern: 'grid', position_mm: { x: 46.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, rows: 2, columns: 3, pitch_x: 2.54, pitch_y: 2.54 }, note: '2x3 ICSP header pin grid' },
 
     // Visible passives / indicators.
     { type: 'cylinder', name: 'power_led_lens', position_mm: { x: 11.0, y: 17.0, z: 1.6 }, dims_mm: { diameter: 3.0, height: 2.4 }, note: '3 mm green power indicator lens' },
