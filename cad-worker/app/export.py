@@ -159,15 +159,20 @@ def export_glb(
             face_colors=[rgb] * len(mesh.faces),
         )
         mesh.visual = visual
-        # trimesh is Z-up; the scene conversion below applies Y-up.
-        scene.add_geometry(mesh, geom_name=name, node_name=name, transform=trimesh.transformations.translation_matrix(
-            [pos.x, pos.y, pos.z]
-        ))
+        # Keep CADForge's authored Z-up orientation in the GLB. The web viewer
+        # applies the single Z-up -> Y-up conversion at render time.
+        scene.add_geometry(
+            mesh,
+            geom_name=name,
+            node_name=name,
+            transform=trimesh.transformations.translation_matrix(
+                [pos.x, pos.y, pos.z]
+            ),
+        )
 
-    # metres + Y-up, in one explicit step (no library guesswork)
-    up = [[1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]
+    # CAD mm -> GLB metres. Do not rotate the exported frame here: the client
+    # owns the single Z-up -> Y-up conversion.
     scene.apply_transform(trimesh.transformations.scale_matrix(GLTF_SCALE))
-    scene.apply_transform(up)
     scene.export(path, file_type="glb")
 
 
