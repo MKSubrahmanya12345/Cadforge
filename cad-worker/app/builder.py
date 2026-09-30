@@ -76,12 +76,15 @@ def build_fallback(spec: PartSpec) -> Any:
             dia = float(d.get("diameter", 0.0))
             h = float(d.get("height", 0.0))
             if dia > 0 and h > 0:
-                solid = solid.union(
-                    cq.Workplane("XY")
-                    .circle(dia / 2)
-                    .extrude(h)
-                    .translate((p.x - sx / 2, p.y - sy / 2, p.z))
-                )
+                axis = f.axis or "z"
+                op = f.operation or "add"
+                cyl = cq.Workplane("XY").circle(dia / 2).extrude(h)
+                if axis == "x":
+                    cyl = cyl.rotate((0, 0, 0), (0, 1, 0), 90)
+                elif axis == "y":
+                    cyl = cyl.rotate((0, 0, 0), (1, 0, 0), -90)
+                cyl = cyl.translate((p.x - sx / 2, p.y - sy / 2, p.z))
+                solid = solid.cut(cyl) if op == "cut" else solid.union(cyl)
         elif f.type == "pin":
             dia = float(d.get("diameter", 0.0))
             length = float(d.get("length", 0.0))
@@ -161,7 +164,7 @@ def fallback_code(spec: PartSpec) -> str:
         const = _const_name(f.name)
         for k, v in f.dims_mm.items():
             lines.append(f"{const}_{k.upper()}_MM = {float(v)!r}")
-        if f.type in ("hole", "box", "cutout"):
+        if f.type in ("hole", "box", "cutout", "cylinder"):
             lines.append(f"{const}_X_MM = {f.position_mm.x!r}")
             lines.append(f"{const}_Y_MM = {f.position_mm.y!r}")
     lines += [
@@ -195,13 +198,16 @@ def fallback_code(spec: PartSpec) -> str:
             h = f.dims_mm.get("height")
             if dia and h and float(dia) > 0 and float(h) > 0:
                 const = _const_name(f.name)
+                axis = f.axis or "z"
+                op = f.operation or "add"
                 lines += [
-                    f"    solid = solid.union(",
-                    f"        cq.Workplane('XY', origin=({f.position_mm.x!r} - LENGTH_MM / 2.0, "
-                    f"{f.position_mm.y!r} - WIDTH_MM / 2.0, BASE_THICKNESS_MM))",
-                    f"        .circle({const}_DIAMETER_MM / 2.0)",
-                    f"        .extrude({const}_HEIGHT_MM)",
-                    "    )",
+                    f"    {const}_AXIS = {axis!r}",
+                    f"    {const}_OPERATION = {op!r}",
+                    f"    cyl = cq.Workplane('XY', origin=({f.position_mm.x!r} - LENGTH_MM / 2.0, {f.position_mm.y!r} - WIDTH_MM / 2.0, {f.position_mm.z!r}))",
+                    f"    cyl = cyl.circle({const}_DIAMETER_MM / 2.0).extrude({const}_HEIGHT_MM)",
+                    f"    if {const}_AXIS == 'x': cyl = cyl.rotate((0, 0, 0), (0, 1, 0), 90)",
+                    f"    elif {const}_AXIS == 'y': cyl = cyl.rotate((0, 0, 0), (1, 0, 0), -90)",
+                    f"    solid = solid.cut(cyl) if {const}_OPERATION == 'cut' else solid.union(cyl)',
                 ]
         elif f.type == "pin":
             dia = f.dims_mm.get("diameter")
