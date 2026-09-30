@@ -111,6 +111,7 @@ const uno: PartSpec = PartSpecSchema.parse({
     { type: 'cylinder', name: 'reset_switch_button', position_mm: { x: 55.0, y: 44.0, z: 4.2 }, dims_mm: { diameter: 3.2, height: 1.8 }, note: 'raised tactile actuator' },
 
     // Headers: continuous housings plus explicit pin rows.
+    { type: 'rounded_box', name: 'icsp_header_body', position_mm: { x: 46.0, y: 17.0, z: 1.6 }, dims_mm: { x: 7.62, y: 5.08, z: 2.54, radius: 0.2 }, note: '2x3 ICSP black through-hole header insulator' },
     { type: 'rounded_box', name: 'digital_header_body', position_mm: { x: 43.18, y: 48.26, z: 1.6 }, dims_mm: { x: 35.56, y: 2.54, z: 8.5, radius: 0.2 }, note: 'D0-D13 black 2.54 mm pitch male header insulator' },
     { type: 'rounded_box', name: 'power_header_body', position_mm: { x: 62.23, y: 48.26, z: 1.6 }, dims_mm: { x: 20.32, y: 2.54, z: 8.5, radius: 0.2 }, note: 'power/control black male header insulator' },
     { type: 'rounded_box', name: 'analog_header_body', position_mm: { x: 33.02, y: 5.08, z: 1.6 }, dims_mm: { x: 15.24, y: 2.54, z: 8.5, radius: 0.2 }, note: 'A0-A5 black male header insulator' },
