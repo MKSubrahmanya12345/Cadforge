@@ -240,6 +240,17 @@ export function deterministicCodeFor(spec: PartSpec): string {
         lines.push(`            (${-bx / 2 - ll / 2}, ${c}_OFFSET, ${ll}, ${lw}),`);
         lines.push('        ]:');
         lines.push(`            solid = solid.union(cq.Workplane("XY").box(${c}_BX, ${c}_BY, ${lh}, centered=(True, True, False)).translate((${c}_X_MM - LENGTH_MM / 2.0 + ${c}_PX, ${c}_Y_MM - WIDTH_MM / 2.0 + ${c}_PY, ${c}_POS_Z_MM)))`);
+      } else if (f.pattern === 'grid') {
+        if (!d || !l || d <= 0 || l <= 0) continue;
+        const rows = Math.max(1, Math.floor(Number(f.dims_mm['rows'] ?? 1)));
+        const columns = Math.max(1, Math.floor(Number(f.dims_mm['columns'] ?? 1)));
+        const pitchX = Number(f.dims_mm['pitch_x'] ?? pitch);
+        const pitchY = Number(f.dims_mm['pitch_y'] ?? pitch);
+        lines.push(`    for row in range(${rows}):`);
+        lines.push(`        ${c}_OFFSET_Y = (row - (${rows} - 1) / 2.0) * ${pitchY}`);
+        lines.push(`        for col in range(${columns}):`);
+        lines.push(`            ${c}_OFFSET_X = (col - (${columns} - 1) / 2.0) * ${pitchX}`);
+        lines.push(`            solid = solid.union(cq.Workplane("XY").circle(${c}_DIAMETER_MM / 2.0).extrude(${c}_LENGTH_MM).translate((${c}_X_MM - LENGTH_MM / 2.0 + ${c}_OFFSET_X, ${c}_Y_MM - WIDTH_MM / 2.0 + ${c}_OFFSET_Y, ${c}_POS_Z_MM)))`);
       } else {
         if (!d || !l || d <= 0 || l <= 0) continue;
         lines.push(`    ${c}_COUNT = ${Math.max(1, Math.floor(count))}`);
