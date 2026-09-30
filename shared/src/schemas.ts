@@ -40,6 +40,7 @@ export const FeatureSchema = z.object({
   dims_mm: FeatureDimsSchema,
   note: z.string().max(400).optional(),
   axis: z.enum(['x', 'y', 'z']).optional(),
+  pattern: z.enum(['linear', 'perimeter']).optional(),
   operation: z.enum(['add', 'cut']).optional(),
 });
 
