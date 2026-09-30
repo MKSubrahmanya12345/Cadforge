@@ -155,6 +155,21 @@ export function validateSpecGeometry(spec: PartSpec): SpecIssue[] {
     issues.push({ severity: 'error', path: 'base_thickness_mm', message: 'base thickness cannot exceed the full physical Z envelope' });
   }
 
+  if (spec.profile_mm) {
+    if (spec.profile_mm.length < 3) {
+      issues.push({ severity: 'error', path: 'profile_mm', message: 'profile needs at least 3 points' });
+    }
+    spec.profile_mm.forEach((pt, i) => {
+      if (pt.x < -0.05 || pt.x > b.x + 0.05 || pt.y < -0.05 || pt.y > b.y + 0.05) {
+        issues.push({
+          severity: 'error',
+          path: `profile_mm[${i}]`,
+          message: `profile point (${pt.x}, ${pt.y}) lies outside bbox ${b.x}×${b.y}`,
+        });
+      }
+    });
+  }
+
   spec.features.forEach((f, i) => {
     const p = `features[${i}]`;
     if (f.type === 'hole') {
