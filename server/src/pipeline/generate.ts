@@ -257,11 +257,10 @@ export function deterministicCodeFor(spec: PartSpec): string {
         lines.push(`    ${c}_PITCH_MM = ${pitch}`);
         lines.push(`    for i in range(${c}_COUNT):`);
         lines.push(`        ${c}_OFFSET_X_MM = (i - (${c}_COUNT - 1) / 2.0) * ${c}_PITCH_MM`);
-        lines.push('        solid = solid.union(');
-        lines.push(`            cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0 + ${c}_OFFSET_X_MM, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`);
-        lines.push(`            .circle(${c}_DIAMETER_MM / 2.0)`);
-        lines.push(`            .extrude(${c}_LENGTH_MM)`);
-        lines.push('        )');
+        lines.push(`        ${c}_PIN = cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0 + ${c}_OFFSET_X_MM, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM)).circle(${c}_DIAMETER_MM / 2.0).extrude(${c}_LENGTH_MM)`);
+        lines.push(`        if ${JSON.stringify(f.axis ?? 'z')} == "x": ${c}_PIN = ${c}_PIN.rotate((0, 0, 0), (0, 1, 0), 90)`);
+        lines.push(`        elif ${JSON.stringify(f.axis ?? 'z')} == "y": ${c}_PIN = ${c}_PIN.rotate((0, 0, 0), (1, 0, 0), -90)`);
+        lines.push(`        solid = solid.union(${c}_PIN)`);
       }
     } else if (f.type === 'box' || f.type === 'rounded_box' || f.type === 'pad') {
       const bx = f.dims_mm['x'];
