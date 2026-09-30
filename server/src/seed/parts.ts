@@ -100,7 +100,7 @@ const uno: PartSpec = PartSpecSchema.parse({
     { type: 'pin', name: 'atmega328p_pins_right', position_mm: { x: 17.78, y: 27.68, z: 1.6 }, dims_mm: { diameter: 0.64, length: 8.5, pitch: 2.54, count: 14 }, note: 'DIP-28 leads, right row' },
     { type: 'rounded_box', name: 'usb_interface_ic_body', position_mm: { x: 16.0, y: 31.0, z: 1.6 }, dims_mm: { x: 5.0, y: 5.0, z: 0.95, radius: 0.35 }, note: 'ATmega16U2-MU QFN USB-to-serial bridge package' },
     { type: 'box', name: 'usb_interface_ic_exposed_pad', position_mm: { x: 16.0, y: 31.0, z: 1.6 }, dims_mm: { x: 3.4, y: 3.4, z: 0.08 }, note: 'underside exposed thermal pad' },
-    { type: 'pin', name: 'usb_interface_ic_pins', position_mm: { x: 13.6, y: 28.6, z: 1.6 }, dims_mm: { diameter: 0.28, length: 0.35, pitch: 0.5, count: 8 }, note: 'representative QFN perimeter lead row; package has 32 leads total' },
+    { type: 'pin', name: 'usb_interface_ic_pins', pattern: 'perimeter', position_mm: { x: 16.0, y: 31.0, z: 1.6 }, dims_mm: { body_x: 5.0, body_y: 5.0, lead_length: 0.35, lead_width: 0.28, lead_height: 0.12, pitch: 0.5, count_per_side: 8 }, note: 'ATmega16U2-MU QFN-32 perimeter lead pattern, 8 pads per side' },
     { type: 'rounded_box', name: 'voltage_regulator_body', position_mm: { x: 7.0, y: 7.0, z: 1.6 }, dims_mm: { x: 6.5, y: 10.0, z: 1.8, radius: 0.45 }, note: 'NCP1117ST50T3G SOT-223-3 regulator package' },
     { type: 'box', name: 'voltage_regulator_tab', position_mm: { x: 7.0, y: 7.0, z: 3.4 }, dims_mm: { x: 6.5, y: 3.0, z: 0.5 }, note: 'large SOT-223 thermal tab' },
     { type: 'pin', name: 'voltage_regulator_leads', position_mm: { x: 4.7, y: 4.0, z: 1.6 }, dims_mm: { diameter: 0.6, length: 0.8, pitch: 2.3, count: 3 }, note: 'SOT-223 lead group' },
