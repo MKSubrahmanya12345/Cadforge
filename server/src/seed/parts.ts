@@ -59,6 +59,21 @@ const uno: PartSpec = PartSpecSchema.parse({
   // the remaining Z envelope.
   bbox_mm: { x: 68.58, y: 53.34, z: 12.6 },
   base_thickness_mm: 1.6,
+  // Official Uno R3 PCB outline, transcribed from the mechanical drawing.
+  // Coordinates are measured from the lower-left PCB datum; the connector
+  // overhangs remain outside this base profile and are modeled separately.
+  profile_mm: [
+    { x: 0, y: 0 },
+    { x: 66.04, y: 0 },
+    { x: 68.58, y: 2.54 },
+    { x: 68.58, y: 5.08 },
+    { x: 66.04, y: 7.62 },
+    { x: 66.04, y: 35.56 },
+    { x: 68.58, y: 38.10 },
+    { x: 68.58, y: 48.26 },
+    { x: 66.04, y: 50.80 },
+    { x: 0, y: 50.80 },
+  ],
   pitch_mm: UNO_DIGITAL_PITCH,
   material: 'FR-4 PCB',
   color_hex: '#0f9d58',
@@ -127,7 +142,7 @@ const uno: PartSpec = PartSpecSchema.parse({
     ]),
   ],
   notes:
-    'PCB outline, mounting holes, and header pitch are from the official mechanical drawing (confidence 0.9). ' +
+    'PCB outline profile, mounting holes, and header pitch are from the official mechanical drawing (confidence 0.9). ' +
     'The component envelopes are canonical visualization geometry derived from the documented Uno topology; ' +
     'individual connector/package dimensions remain approximate until a manufacturer CAD asset is imported.',
 });
