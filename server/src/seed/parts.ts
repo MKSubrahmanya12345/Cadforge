@@ -140,6 +140,11 @@ const uno: PartSpec = PartSpecSchema.parse({
     source(UNO_D, 'Arduino Uno Rev3 product page and pinout', [
       { field: 'pins', value: 'D0-D13 digital, A0-A5 analog, 5V, GND, RESET, AREF, 3V3', source_url: UNO_D },
     ]),
+    source('https://www.kycon.com/Pub_Eng_Draw/KUSBEX-BSFS1N-xxx.pdf', 'KYCON USB Type-B right-angle receptacle mechanical drawing', [
+      { field: 'shell_width', value: '12.0 mm nominal front width', source_url: 'https://www.kycon.com/Pub_Eng_Draw/KUSBEX-BSFS1N-xxx.pdf' },
+      { field: 'shell_depth', value: '16.2 mm nominal body depth', source_url: 'https://www.kycon.com/Pub_Eng_Draw/KUSBEX-BSFS1N-xxx.pdf' },
+      { field: 'opening', value: '8.45 x 7.78 mm representative Type-B mating opening', source_url: 'https://www.farnell.com/datasheets/1788391.pdf' },
+    ]),
   ],
   notes:
     'PCB outline profile, mounting holes, and header pitch are from the official mechanical drawing (confidence 0.9). ' +
