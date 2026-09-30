@@ -173,7 +173,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
     for (const [k, v] of Object.entries(f.dims_mm)) {
       lines.push(`${c}_${k.toUpperCase()}_MM = ${v}`);
     }
-    if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin') {
+    if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin' || f.type === 'box' || f.type === 'cutout') {
       lines.push(`${c}_X_MM = ${f.position_mm.x}`);
       lines.push(`${c}_Y_MM = ${f.position_mm.y}`);
     }
@@ -181,7 +181,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
 
   lines.push('', '', 'def build() -> cq.Workplane:');
   lines.push('    solid = cq.Workplane("XY").box(');
-  lines.push('        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)');
+  lines.push('        LENGTH_MM, WIDTH_MM, BASE_THICKNESS_MM, centered=(True, True, False)');
   lines.push('    )');
 
   for (const f of spec.features) {
@@ -214,19 +214,33 @@ export function deterministicCodeFor(spec: PartSpec): string {
       if (!d || !l || d <= 0 || l <= 0) continue;
       lines.push('    solid = solid.union(');
       lines.push(
-        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, HEIGHT_MM))`,
+        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, BASE_THICKNESS_MM))`,
       );
       lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
       lines.push(`        .extrude(${c}_LENGTH_MM)`);
       lines.push('    )');
+    } else if (f.type === 'box') {
+      const bx = f.dims_mm['x'];
+      const by = f.dims_mm['y'];
+      const bz = f.dims_mm['z'];
+      if (!bx || !by || !bz || bx <= 0 || by <= 0 || bz <= 0) continue;
+      lines.push('    solid = solid.union(');
+      lines.push(`        cq.Workplane("XY").box(${c}_X_MM, ${c}_Y_MM, ${c}_Z_MM, centered=(True, True, False))`);
+      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM))`);
+      lines.push('    )');
+    } else if (f.type === 'cutout') {
+      const bx = f.dims_mm['x'];
+      const by = f.dims_mm['y'];
+      const bz = f.dims_mm['z'];
+      if (!bx || !by || !bz || bx <= 0 || by <= 0 || bz <= 0) continue;
+      lines.push('    solid = solid.cut(');
+      lines.push(`        cq.Workplane("XY").box(${c}_X_MM, ${c}_Y_MM, ${c}_Z_MM * 2.0, centered=(True, True, False))`);
+      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM - ${c}_Z_MM))`);
+      lines.push('    )');
     }
   }
 
-  lines.push('    # The bbox is the contract: clamp to it so the model is exactly spec-sized,');
-  lines.push('    # even when a feature (a dome, a header pin) sits on a face.');
-  lines.push('    envelope = cq.Workplane("XY").box(');
-  lines.push('        LENGTH_MM, WIDTH_MM, HEIGHT_MM, centered=(True, True, False)');
-  lines.push('    )');
-  lines.push('    return solid.intersect(envelope)');
+  // bbox_mm is the complete physical envelope; do not clip components to it.
+  lines.push('    return solid');
   return `${lines.join('\n')}\n`;
 }
