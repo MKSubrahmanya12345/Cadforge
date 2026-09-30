@@ -59,8 +59,14 @@ def build_fallback(spec: PartSpec) -> Any:
         raise ValueError(f"invalid base_thickness_mm={base_z} for bbox z={sz}")
 
     # The bbox is the COMPLETE physical envelope. The base body may be thinner
-    # than that envelope when real components stand above the PCB.
-    solid = cq.Workplane("XY").box(sx, sy, base_z, centered=(True, True, False))
+    # than that envelope when real components stand above the PCB. If an exact
+    # footprint profile is supplied, use it instead of silently turning the board
+    # into a rectangle.
+    if spec.profile_mm:
+        points = [(float(pt.x) - sx / 2, float(pt.y) - sy / 2) for pt in spec.profile_mm]
+        solid = cq.Workplane("XY").polyline(points).close().extrude(base_z)
+    else:
+        solid = cq.Workplane("XY").box(sx, sy, base_z, centered=(True, True, False))
 
     # Cylinders: bosses standing proud of the top face.
     for f in spec.features:
@@ -145,6 +151,11 @@ def fallback_code(spec: PartSpec) -> str:
         f"HEIGHT_MM = {sz!r}",
         f"BASE_THICKNESS_MM = {float(spec.base_thickness_mm or sz)!r}",
     ]
+    if spec.profile_mm:
+        lines.append(
+            "PROFILE_POINTS = " +
+            repr([(float(pt.x) - sx / 2, float(pt.y) - sy / 2) for pt in spec.profile_mm])
+        )
     for f in spec.features:
         const = _const_name(f.name)
         for k, v in f.dims_mm.items():
@@ -156,9 +167,12 @@ def fallback_code(spec: PartSpec) -> str:
         "",
         "",
         "def build() -> cq.Workplane:",
-        "    solid = cq.Workplane('XY').box(",
-        "        LENGTH_MM, WIDTH_MM, BASE_THICKNESS_MM, centered=(True, True, False)",
-        "    )",
+        "    if 'PROFILE_POINTS' in globals():",
+        "        solid = cq.Workplane('XY').polyline(PROFILE_POINTS).close().extrude(BASE_THICKNESS_MM)",
+        "    else:",
+        "        solid = cq.Workplane('XY').box(",
+        "            LENGTH_MM, WIDTH_MM, BASE_THICKNESS_MM, centered=(True, True, False)",
+        "        )",
     ]
     for f in spec.features:
         if f.type == "hole":
