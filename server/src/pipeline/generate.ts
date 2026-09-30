@@ -177,7 +177,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
     for (const [k, v] of Object.entries(f.dims_mm)) {
       lines.push(`${c}_${k.toUpperCase()}_MM = ${v}`);
     }
-    if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin' || f.type === 'box' || f.type === 'cutout') {
+    if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin' || f.type === 'box' || f.type === 'rounded_box' || f.type === 'cutout') {
       lines.push(`${c}_X_MM = ${f.position_mm.x}`);
       lines.push(`${c}_Y_MM = ${f.position_mm.y}`);
       lines.push(`${c}_POS_Z_MM = ${f.position_mm.z}`);
@@ -234,7 +234,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
       lines.push(`            .circle(${c}_DIAMETER_MM / 2.0)`);
       lines.push(`            .extrude(${c}_LENGTH_MM)`);
       lines.push('        )');
-    } else if (f.type === 'box') {
+    } else if (f.type === 'box' || f.type === 'rounded_box') {
       const bx = f.dims_mm['x'];
       const by = f.dims_mm['y'];
       const bz = f.dims_mm['z'];
@@ -242,10 +242,19 @@ export function deterministicCodeFor(spec: PartSpec): string {
       lines.push(`    ${c}_BOX_X_MM = ${bx}`);
       lines.push(`    ${c}_BOX_Y_MM = ${by}`);
       lines.push(`    ${c}_BOX_Z_MM = ${bz}`);
-      lines.push('    solid = solid.union(');
-      lines.push(`        cq.Workplane("XY").box(${c}_BOX_X_MM, ${c}_BOX_Y_MM, ${c}_BOX_Z_MM, centered=(True, True, False))`);
-      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`);
-      lines.push('    )');
+      if (f.type === 'rounded_box') {
+        const radius = Math.min(Number(f.dims_mm['radius'] ?? 0), bx / 2, by / 2, bz / 2);
+        lines.push(`    ${c}_RADIUS_MM = ${radius}`);
+        lines.push(`    body = cq.Workplane("XY").box(${c}_BOX_X_MM, ${c}_BOX_Y_MM, ${c}_BOX_Z_MM, centered=(True, True, False))`);
+        lines.push(`    if ${c}_RADIUS_MM > 0:`);
+        lines.push(`        body = body.edges().fillet(${c}_RADIUS_MM)`);
+        lines.push(`    solid = solid.union(body.translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM)))`);
+      } else {
+        lines.push('    solid = solid.union(');
+        lines.push(`        cq.Workplane("XY").box(${c}_BOX_X_MM, ${c}_BOX_Y_MM, ${c}_BOX_Z_MM, centered=(True, True, False))`);
+        lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`);
+        lines.push('    )');
+      }
     } else if (f.type === 'cutout') {
       const bx = f.dims_mm['x'];
       const by = f.dims_mm['y'];
@@ -255,8 +264,8 @@ export function deterministicCodeFor(spec: PartSpec): string {
       lines.push(`    ${c}_CUT_Y_MM = ${by}`);
       lines.push(`    ${c}_CUT_Z_MM = ${bz}`);
       lines.push('    solid = solid.cut(');
-      lines.push(`        cq.Workplane("XY").box(${c}_CUT_X_MM, ${c}_CUT_Y_MM, ${c}_CUT_Z_MM * 2.0, centered=(True, True, False))`);
-      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM - ${c}_CUT_Z_MM))`);
+      lines.push(`        cq.Workplane("XY").box(${c}_CUT_X_MM, ${c}_CUT_Y_MM, ${c}_CUT_Z_MM, centered=(True, True, False))`);
+      lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`);
       lines.push('    )');
     }
   }
