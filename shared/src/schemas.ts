@@ -84,6 +84,8 @@ export const PartSpecSchema = z.object({
   category: PartCategorySchema,
   aliases: z.array(z.string().min(1).max(200)).default([]),
   bbox_mm: BboxSchema,
+  /** Thickness of the primary/base body when bbox_mm includes components mounted above it. */
+  base_thickness_mm: finite.positive().optional(),
   features: z.array(FeatureSchema).default([]),
   anchors: z.array(AnchorSchema).default([]),
   pitch_mm: finite.positive().optional(),
