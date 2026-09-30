@@ -263,7 +263,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
         lines.push(`            .extrude(${c}_LENGTH_MM)`);
         lines.push('        )');
       }
-    } else if (f.type === 'box' || f.type === 'rounded_box') {
+    } else if (f.type === 'box' || f.type === 'rounded_box' || f.type === 'pad') {
       const bx = f.dims_mm['x'];
       const by = f.dims_mm['y'];
       const bz = f.dims_mm['z'];
