@@ -30,7 +30,7 @@ export type ProfilePoint = z.infer<typeof ProfilePointSchema>;
  */
 export const FeatureDimsSchema = z.record(finite);
 
-export const FEATURE_TYPES = ['hole', 'cylinder', 'box', 'pin', 'pad', 'cutout'] as const;
+export const FEATURE_TYPES = ['hole', 'cylinder', 'box', 'rounded_box', 'pin', 'pad', 'cutout'] as const;
 export type FeatureType = (typeof FEATURE_TYPES)[number];
 
 export const FeatureSchema = z.object({
