@@ -151,6 +151,9 @@ export function validateSpecGeometry(spec: PartSpec): SpecIssue[] {
   if (b.x <= 0 || b.y <= 0 || b.z <= 0) {
     issues.push({ severity: 'error', path: 'bbox_mm', message: 'bbox must be positive' });
   }
+  if (spec.base_thickness_mm !== undefined && spec.base_thickness_mm > b.z) {
+    issues.push({ severity: 'error', path: 'base_thickness_mm', message: 'base thickness cannot exceed the full physical Z envelope' });
+  }
 
   spec.features.forEach((f, i) => {
     const p = `features[${i}]`;
