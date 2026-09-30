@@ -176,6 +176,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
     if (f.type === 'hole' || f.type === 'cylinder' || f.type === 'pin' || f.type === 'box' || f.type === 'cutout') {
       lines.push(`${c}_X_MM = ${f.position_mm.x}`);
       lines.push(`${c}_Y_MM = ${f.position_mm.y}`);
+      lines.push(`${c}_POS_Z_MM = ${f.position_mm.z}`);
     }
   }
 
@@ -203,7 +204,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
       if (!d || !h || d <= 0 || h <= 0) continue;
       lines.push('    solid = solid.union(');
       lines.push(
-        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, BASE_THICKNESS_MM))`,
+        `        cq.Workplane("XY", origin=(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_POS_Z_MM))`,
       );
       lines.push(`        .circle(${c}_DIAMETER_MM / 2.0)`);
       lines.push(`        .extrude(${c}_HEIGHT_MM)`);
@@ -225,7 +226,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
       const bz = f.dims_mm['z'];
       if (!bx || !by || !bz || bx <= 0 || by <= 0 || bz <= 0) continue;
       lines.push('    solid = solid.union(');
-      lines.push(`        cq.Workplane("XY").box(${c}_X_MM, ${c}_Y_MM, ${c}_Z_MM, centered=(True, True, False))`);
+      lines.push(`        cq.Workplane("XY").box(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM, centered=(True, True, False))`);
       lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM))`);
       lines.push('    )');
     } else if (f.type === 'cutout') {
@@ -234,7 +235,7 @@ export function deterministicCodeFor(spec: PartSpec): string {
       const bz = f.dims_mm['z'];
       if (!bx || !by || !bz || bx <= 0 || by <= 0 || bz <= 0) continue;
       lines.push('    solid = solid.cut(');
-      lines.push(`        cq.Workplane("XY").box(${c}_X_MM, ${c}_Y_MM, ${c}_Z_MM * 2.0, centered=(True, True, False))`);
+      lines.push(`        cq.Workplane("XY").box(${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM * 2.0, centered=(True, True, False))`);
       lines.push(`        .translate((${c}_X_MM - LENGTH_MM / 2.0, ${c}_Y_MM - WIDTH_MM / 2.0, ${c}_Z_MM - ${c}_Z_MM))`);
       lines.push('    )');
     }
